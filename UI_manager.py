@@ -168,15 +168,19 @@ class UI_manager_class:
             self.save_to_file()
 
     def save_to_database(self):
-        try:
+        #try:
+            print("Attempting to save")
             dsm = Database_manager()
             dsm.attach_store(self.store)
-            dsm.dump_to_db()
+            print("Saving to DB...")
+            dsm.dump_to_db(self.current_user)
             print(self.db_save_success_msg)
+            """
         except NameError:
             print("A SIMULATION UNDER THIS NAME ALREADY EXISTS IN THE DATABASE")
             name = input("ENTER NEW NAME:")
             self.store.build(name, self.rate, 0.0001, 5)
+            """
     def save_to_file(self):
         fm = File_Manager()
         print(self.file_exist_msg, self.get_filenames())

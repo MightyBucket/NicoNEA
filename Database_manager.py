@@ -101,7 +101,8 @@ class File_Manager():
 
 class Database_manager():
     def __init__(self):
-        self.db_path = "C:/Users/18alfonsoni/OneDrive - Hampton School/NEA/ParticleDatabase.db"
+        self.db_path = "ParticleDatabase.db"
+        self.initialize_database()
         self.cache = {}
     
     def verify_user(self, username, password):
@@ -121,6 +122,16 @@ class Database_manager():
         except sqlite3.Error as e:
             print(f"Database error: {e}")
             return False
+        
+    def get_user_id(self, username):
+        """Get the User ID for a given username in the database"""
+        connection = sqlite3.connect(self.db_path)
+        cursor = connection.cursor()
+        cursor.execute("""
+            SELECT UserID FROM Users WHERE Username = ?
+        """, (username,))
+        return [row[0] for row in cursor.fetchall()][0]
+        pass
     
     def get_user_simulations(self, username):
         """Get all simulations created by a user"""
@@ -156,22 +167,23 @@ class Database_manager():
         return new_store
 
     def name_exists(self, sim_name):
-        if not os.path.exists("C:/Users/18alfonsoni/OneDrive - Hampton School/NEA/ParticleDatabase.db"):
+        if not os.path.exists("ParticleDatabase.db"):
             return False
-        connection = sqlite3.connect("C:/Users/18alfonsoni/OneDrive - Hampton School/NEA/ParticleDatabase.db")
+        connection = sqlite3.connect("ParticleDatabase.db")
         cursor = connection.cursor()
         cmd = "SELECT Sim_Name FROM Simulations"
         cursor.execute(cmd)
-        for result in cursor:
+        simulations = cursor.fetchall()
+        for result in simulations:
             if result[0] == sim_name:
                 return True
         connection.close()
         return False
 
     def get_all_names(self):
-        if os.path.exists("C:/Users/18alfonsoni/OneDrive - Hampton School/NEA/ParticleDatabase.db") is False:
+        if os.path.exists("ParticleDatabase.db") is False:
             return []
-        connection = sqlite3.connect("C:/Users/18alfonsoni/OneDrive - Hampton School/NEA/ParticleDatabase.db")
+        connection = sqlite3.connect("ParticleDatabase.db")
         cursor = connection.cursor()
         cmd = "SELECT Sim_Name FROM Simulations"
         cursor.execute(cmd)
@@ -186,11 +198,11 @@ class Database_manager():
             print(f"Loading {sim_name} from cache...")
             return self.cache[sim_name]
         self.particle_lst = []
-        if not os.path.exists("C:/Users/18alfonsoni/OneDrive - Hampton School/NEA/ParticleDatabase.db"):
+        if not os.path.exists("ParticleDatabase.db"):
             return NameError("The database file does not exist or has been moved")
         if not self.name_exists(sim_name):
             return NameError("The simulation under that name does not exist")
-        connection = sqlite3.connect("C:/Users/18alfonsoni/OneDrive - Hampton School/NEA/ParticleDatabase.db")
+        connection = sqlite3.connect("ParticleDatabase.db")
         cursor = connection.cursor()
 
         # Pull row from Simulations where Sim_Name = sim_name
@@ -259,7 +271,7 @@ class Database_manager():
             result.append(lst)
         return result
     
-    def initialize_database(db_name="C:/Users/18alfonsoni/OneDrive - Hampton School/NEA/ParticleDatabase.db"):
+    def initialize_database(self, db_name="ParticleDatabase.db"):
         try:
             # Establish connection (creates the file if it doesn't exist)
             connection = sqlite3.connect(db_name)
@@ -269,6 +281,7 @@ class Database_manager():
             cursor.execute("""
             CREATE TABLE IF NOT EXISTS Simulations (
                 Sim_Name TEXT PRIMARY KEY,
+                UserID INTEGER,
                 No_Particles INTEGER,
                 Rate FLOAT,
                 Duration FLOAT,
@@ -326,38 +339,37 @@ class Database_manager():
             )""")
             # Commit changes and close connection
             connection.commit()
-            print(f"Database '{db_name}' initialized successfully.")
         except sqlite3.Error as e:
             print(f"An error occurred while initializing the database: {e}")
         finally:
             connection.close()
 
-    def dump_to_db(self):
+    def dump_to_db(self, username):
         # Add creator tracking to simulations table
-        creator_id = self._get_user_id(self.current_user)
+        creator_id = self.get_user_id(username)
+
         
         tblTemps = [(self.sim_data["Sim_Name"], creator_id,  # Added creator ID
                     self.sim_data["No_Pars"], self.sim_data["Rate"],
                     self.sim_data["Run Time"], self.sim_data["Increment"])]
+        
+
+        # check if database exists
+        if not os.path.exists("ParticleDatabase.db"):
+            # If the database doesn't already exist
+            Database_manager.initialize_database()
+
+        connection = sqlite3.connect("ParticleDatabase.db")
+        cursor = connection.cursor()
+
                     
         cursor.executemany("""
             INSERT INTO Simulations VALUES (?,?,?,?,?,?)
         """, tblTemps)
-        # check if database exists
-        if not os.path.exists("C:/Users/18alfonsoni/OneDrive - Hampton School/NEA/ParticleDatabase.db"):
-            # If the database doesn't already exist
-            Database_manager.initialize_database()
+
 
         if self.name_exists(self.sim_data["Sim_Name"]):
             raise NameError("A simulation under this name already exists in the database")
-
-        connection = sqlite3.connect("C:/Users/18alfonsoni/OneDrive - Hampton School/NEA/ParticleDatabase.db")
-        cursor = connection.cursor()
-
-        # Dump sim data into Simulations Table
-        tblTemps = [(self.sim_data["Sim_Name"], self.sim_data["No_Pars"], self.sim_data["Rate"],
-                    self.sim_data["Run Time"], self.sim_data["Increment"])]
-        cursor.executemany("INSERT INTO Simulations VALUES (?,?,?,?,?)", tblTemps)
 
         # Dump particle data into Particles Table
         tblTemps = [(self.sim_data["Sim_Name"], par["Charge"], par["Mass"], str(par["Position"]),
@@ -381,6 +393,7 @@ class Database_manager():
         hashed = hashpw(password.encode('utf-8'), gensalt())
         
         try:
+            print(f"DB path is {self.db_path}")
             connection = sqlite3.connect(self.db_path)
             cursor = connection.cursor()
             cursor.execute("INSERT INTO Users (Username, PasswordHash) VALUES (?, ?)", 

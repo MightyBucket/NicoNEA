@@ -163,8 +163,8 @@ class Particle_Group:
     def M_Acceleration_Update(self):
         k = 1e-7
         for i, j, r_vec, r, dir in self.precomputed_pairs:
-            p1 = self.array_particles[i]
-            p2 = self.array_particles[j]
+            p1 = i
+            p2 = j
             
             # Force on p2 from p1's field
             B = (k * p1.charge * cross(p1.velocity, dir)) / r**2
