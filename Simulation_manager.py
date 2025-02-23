@@ -248,7 +248,8 @@ class Sim(Collision_Handler):
 
         # Pre-bind mouse events for all particles (avoiding repeated calls during pause)
         for particle in self.particles.array_particles:
-            Particle.bind_mouse_events(particle, scene)
+            print("Binding mouse callbacks")
+            Particle.bind_mouse_events(particle, self.scene)
 
         # Main simulation loop
         while iter_count < frames_left - 1:

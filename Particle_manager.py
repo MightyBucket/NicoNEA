@@ -19,6 +19,12 @@ class Particle:
         self.object = None
         self.is_dragging = False
 
+        # Variables to manage dragging
+        self.dragging = False
+        self.drag_offset = vector(0, 0, 0)
+        self.drag_plane_normal = vector(0, 0, 1)  # will be updated on drag start
+        self.drag_plane_point = vector(0, 0, 0)
+
     def get_desc(self):
         return {
             "Charge": self.charge,
@@ -56,26 +62,25 @@ class Particle:
     def is_clicked(self, click_pos):
         return mag(self.pos - click_pos) <= self.radius
 
-    def handle_mouse_down(self, evt, particles):
-        for particle in particles:
-            if particle.is_clicked(evt.pos):
-                particle.is_dragging = True
-                break
+    def handle_mouse_down(self, evt, particle):
+        if particle.is_clicked(evt.pos):
+            particle.is_dragging = True
 
-    def handle_mouse_drag(self, evt, particles):
-        for particle in particles:
-            if particle.is_dragging:
-                particle.update_position(evt.pos)
+    def handle_mouse_drag(self, evt, particle):
+        if particle.is_dragging:
+            particle.update_position(evt.pos)
 
-    def handle_mouse_up(self, particles):
-        for particle in particles:
-            if particle.is_dragging:
-                particle.is_dragging = False
+    def handle_mouse_up(self, particle):
+        if particle.is_dragging:
+            particle.is_dragging = False
+
+    
 
     def bind_mouse_events(self, scene):
         scene.bind("mousedown", lambda evt: self.handle_mouse_down(evt, self))
         scene.bind("mousemove", lambda evt: self.handle_mouse_drag(evt, self))
         scene.bind("mouseup", lambda evt: self.handle_mouse_up(self))
+        print("Functions bound")
 
 
 class Data_store:
