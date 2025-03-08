@@ -239,7 +239,7 @@ class Sim(Collision_Handler):
 
     def handle_mouse_up(self):
         for particle in self.particles.array_particles:
-            particle.handle_mouse_up(particle)
+            particle.handle_mouse_up()
 
 
     def Run(self):
