@@ -62,17 +62,30 @@ class Particle:
     def is_clicked(self, click_pos):
         return mag(self.pos - click_pos) <= self.radius
 
-    def handle_mouse_down(self, evt, particle):
-        if particle.is_clicked(evt.pos):
-            particle.is_dragging = True
+    def handle_mouse_down(self, scene):
+        # Use scene.mouse.pick to get the object that was clicked
+        picked = scene.mouse.pick
+        #print(f"Picked is {picked} while I am {particle.object}")
+        if picked is self.object:
+            self.dragging = True
+            # Define the drag plane to be perpendicular to the current view
+            self.drag_plane_normal = scene.forward
+            self.drag_plane_point = self.object.pos
+            # Project the mouse ray onto the drag plane
+            proj = scene.mouse.project(normal=self.drag_plane_normal, d=dot(self.drag_plane_normal, self.drag_plane_point))
+            if proj:
+                self.drag_offset = self.object.pos - proj
+                
 
-    def handle_mouse_drag(self, evt, particle):
-        if particle.is_dragging:
-            particle.update_position(evt.pos)
+    def handle_mouse_drag(self, scene):
+        if self.dragging:
+            # Project the current mouse position onto the drag plane
+            proj = scene.mouse.project(normal=self.drag_plane_normal, d=dot(self.drag_plane_normal, self.drag_plane_point))
+            if proj:
+                self.object.pos = proj + self.drag_offset
 
-    def handle_mouse_up(self, particle):
-        if particle.is_dragging:
-            particle.is_dragging = False
+    def handle_mouse_up(self):
+        self.dragging = False
 
     
 

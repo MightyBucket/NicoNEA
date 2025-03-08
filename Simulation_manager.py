@@ -229,6 +229,19 @@ class Sim(Collision_Handler):
             count = (count + 1) % self.particles.array_size 
             self.store.add_to_acc(count, particle.acceleration)
 
+    def handle_mouse_down(self):
+        for particle in self.particles.array_particles:
+            particle.handle_mouse_down(self.scene)
+
+    def handle_mouse_drag(self):
+        for particle in self.particles.array_particles:
+            particle.handle_mouse_drag(self.scene)
+
+    def handle_mouse_up(self):
+        for particle in self.particles.array_particles:
+            particle.handle_mouse_up(particle)
+
+
     def Run(self):
         frames_left = int(self.run_time / self.dt)
 
@@ -246,10 +259,10 @@ class Sim(Collision_Handler):
         #particle_count = len(self.particles.array_particles)
         #masses = [self.store.initial_conditions[i]["Mass"] for i in range(particle_count)]
 
-        # Pre-bind mouse events for all particles (avoiding repeated calls during pause)
-        for particle in self.particles.array_particles:
-            print("Binding mouse callbacks")
-            Particle.bind_mouse_events(particle, self.scene)
+        # Bind mouse events for all particles (avoiding repeated calls during pause)
+        self.scene.bind("mousedown", lambda evt: self.handle_mouse_down())
+        self.scene.bind("mousemove", lambda evt: self.handle_mouse_drag())
+        self.scene.bind("mouseup", lambda evt: self.handle_mouse_up())
 
         # Main simulation loop
         while iter_count < frames_left - 1:
