@@ -2,6 +2,7 @@ from tkinter import *
 from tkinter import messagebox
 from tkinter.ttk import Combobox
 from tksheet import Sheet
+from Dependency_graph import DependencyGraph
 from Simulation_manager import *
 from Database_manager import *
 from os import listdir
@@ -34,7 +35,17 @@ class UI_Manager_class:
         self.store = None
         self.current_user = None
         self.db_manager = Database_manager()
-        #self.dependency_graph = DependencyGraph() 
+        self.sim_increment = 0.00001
+        self.dependency_graph = DependencyGraph() 
+
+        # Create the validation callback functions for text entry widgets
+        self.validate_int = (self.root.register(lambda P: str.isdigit(P) or P == ""))
+        def isFloat(P):
+            try:
+                return True if P == "" else float(P)
+            except:
+                return False
+        self.validate_float = (self.root.register(isFloat))
 
 
     def clear_window(self):
@@ -46,6 +57,15 @@ class UI_Manager_class:
 
     def exit(self):
         self.root.destroy()
+
+    def start_simulation(self):
+        self.clear_window()
+        self.simulation.pre_compute()
+        self.simulation.Run()
+
+    def parse_vector(self, inp):
+        x, y, z = map(int, inp.strip("()").split(","))
+        return vector(x, y, z)
 
     def authentication(self):
         # Create a welcome sign
@@ -63,6 +83,7 @@ class UI_Manager_class:
         # School code controls
         code_entry = Entry(self.root, font=("Helvetica", 32, "bold"))
         code_entry.pack()
+        code_entry.bind("<Return>", lambda event: check_school_code())
 
         submit_button = Button(self.root,
                             text="Submit",
@@ -73,8 +94,8 @@ class UI_Manager_class:
 
         def check_school_code(code):
             if code == "Hampton":
-                messagebox.showinfo("Success", "Valid school code. Please login or register to continue.")
-                login_or_register()
+                #messagebox.showinfo("Success", "Valid school code. Please login or register to continue.")
+                self.login_or_register()
 
             else:
                 messagebox.showerror("Error", "Invalid school code")
@@ -83,40 +104,24 @@ class UI_Manager_class:
     def login_or_register(self):
         self.clear_window()
 
-        # Create labels and entry fields for username and password
-        welcome_label = Label(self.root,
-                            text="Please log in or register",
-                            font=("Helvetica", 40, "bold"))
-        welcome_label.pack()
+        
+        Label(self.root, text="Please log in or register", font=("Helvetica", 40, "bold")).pack()
 
-        username_label = Label(self.root,
-                            text="Username:",
-                            font=self.fonts["button"])
-        username_label.pack(pady=10)
-        username_entry = Entry(self.root,
-                            font=self.fonts["button"])
+        # Labels and entry fields for username and password
+        Label(self.root, text="Username:", font=self.fonts["button"]).pack(pady=10)
+        username_entry = Entry(self.root, font=self.fonts["button"])
         username_entry.pack()
 
-        password_label = Label(self.root,
-                            text="Password:",
-                            font=self.fonts["button"])
-        password_label.pack(pady=10)
-        password_entry = Entry(self.root,
-                            font=self.fonts["button"],
-                            show="*")
+        Label(self.root,text="Password:",font=self.fonts["button"]).pack(pady=10)
+        password_entry = Entry(self.root, font=self.fonts["button"], show="*")
         password_entry.pack()
+        password_entry.bind("<Return>", lambda event: validate_login())
 
-        login_button = Button(self.root,
-            text="Login",
-            font=self.fonts["button"],
-            command=lambda: validate_login(username_entry.get(), password_entry.get()))
-        login_button.pack(pady=5)
+        Button(self.root, text="Login", font=self.fonts["button"], 
+               command=lambda: validate_login(username_entry.get(), password_entry.get())).pack(pady=5)
 
-        register_button = Button(self.root,
-            text="Register",
-            font=self.fonts["button"],
-            command=lambda: validate_registration(username_entry.get(), password_entry.get()))
-        register_button.pack(pady=5)
+        Button(self.root, text="Register", font=self.fonts["button"],
+            command=lambda: validate_registration(username_entry.get(), password_entry.get())).pack(pady=5)
 
         def validate_login(username, password):
             if self.db_manager.verify_user(username, password):
@@ -129,7 +134,7 @@ class UI_Manager_class:
 
         def validate_registration(username, password):
             if self.db_manager.create_user(username, password):
-                messagebox.showinfo("Success", f"Welcome {username}!")
+                #messagebox.showinfo("Success", f"Welcome {username}!")
                 self.current_user = username
                 self.main_menu()
             else:
@@ -185,143 +190,6 @@ class UI_Manager_class:
         
         def update_duration_slider(event):
             duration_slider.set(float(duration_entry.get()))
-
-        def graphs_page():
-            for widget in self.root.winfo_children():
-                widget.destroy()
-            
-            Label(self.root, text="Select Graphs to Include:").pack()
-            graph_frame = Frame(self.root)
-            graph_frame.pack()
-            
-            kinetic_var = BooleanVar()
-            speed_var = BooleanVar()
-            force_var = BooleanVar()
-            acceleration_var = BooleanVar()
-            
-            Checkbutton(graph_frame, text="Kinetic Energy", variable=kinetic_var).pack(anchor=W)
-            Checkbutton(graph_frame, text="Speed", variable=speed_var).pack(anchor=W)
-            Checkbutton(graph_frame, text="Net Force", variable=force_var).pack(anchor=W)
-            Checkbutton(graph_frame, text="Net Acceleration", variable=acceleration_var).pack(anchor=W)
-            
-            Label(self.root, text="Save Simulation Data?").pack()
-            save_var = StringVar(value="None")
-            save_frame = Frame(self.root)
-            save_frame.pack()
-
-            def toggle_filename_entry():
-                if(save_var.get() == "File"):
-                    filename_entry.config(state=NORMAL)
-                else:
-                    filename_entry.config(state=DISABLED)
-
-            Radiobutton(save_frame, text="Don't Save", variable=save_var, value="None", command=toggle_filename_entry).pack(anchor=W)
-            Radiobutton(save_frame, text="Save to Database", variable=save_var, value="Database", command=toggle_filename_entry).pack(anchor=W)
-            Radiobutton(save_frame, text="Save to File", variable=save_var, value="File", command=toggle_filename_entry).pack(anchor=W)
-            
-            fileinput_frame = Frame(self.root)
-            fileinput_frame.pack()
-            Label(fileinput_frame, text="Filename: ").pack(side=LEFT)
-            filename_entry = Entry(fileinput_frame, width=20, state=DISABLED)
-            filename_entry.pack(side=LEFT)
-
-            
-            def finalize():
-                selected_graphs = []
-                if kinetic_var.get():
-                    selected_graphs.append("Kinetic Energy")
-                if speed_var.get():
-                    selected_graphs.append("Speed")
-                if force_var.get():
-                    selected_graphs.append("Net Force")
-                if acceleration_var.get():
-                    selected_graphs.append("Net Acceleration")
-                
-                save_data = save_var.get()
-                filename = filename_entry.get() if save_data == "File" else ""
-                messagebox.showinfo("Setup Complete", f"Graphs: {', '.join(selected_graphs)}\nSave Data: {save_data}\nFilename: {filename}")
-                self.root.destroy()
-                
-            Button(self.root, text="Finish", command=finalize).pack()
-        
-        def particles_page():
-            for widget in self.root.winfo_children():
-                widget.destroy()
-            
-            Label(self.root, text="Particle Information:").pack()
-            
-            sheet_frame = Frame(self.root)
-            sheet_frame.pack()
-            
-            sheet = Sheet(sheet_frame,
-                          headers=["Charge", "Mass", "Position (X,Y,Z)", "Velocity (X,Y,Z)", "Radius", "Colour"],
-                          width=600,
-                          height=250)
-            sheet.set_column_widths([70, 70, 120, 120, 70, 70])
-            sheet.pack()
-            sheet.enable_bindings()  # Allow direct cell editing
-            
-            sheet.insert_row(["", "", "", "", "", ""])
-            
-            def add_row():
-                sheet.insert_row(["", "", "", "", "", ""])
-            
-            def remove_selected_row():
-                selected_rows = list(sheet.get_selected_rows())
-                if selected_rows != []:
-                    for row in reversed(selected_rows):
-                        sheet.delete_row(row)
-                else:
-                    messagebox.showwarning("No particles selected", "You must select the entire particle row. Click the row numbers to select its row")
-                
-            def add_particle_from_text():
-                data = particle_input.get()
-                try:
-                    if data:
-                        values = data.split()
-                        if len(values) == 6:
-                            sheet.insert_row(values)
-                    else:
-                        raise Exception("Input field is empty")
-                except:
-                    message = """
-                    Please enter the attributes in the following format: 
-                    CHARGE MASS INITIAL_POSITION INITIAL_VELOCITY RADIUS COLOUR
-                    
-                    For example: 
-                    0.25 100 (0,0,0) (0,0,0) 0.25 red 
-                    """
-
-                    messagebox.showerror("Error", message)
-                    
-                particle_input.delete(0, END)
-                
-            def submit():
-                particles = []
-                for row in sheet.get_sheet_data():  # Get updated values
-                    if any(row):  # Only process rows with data
-                        particles.append(row)
-                #messagebox.showinfo("Success", "Simulation setup completed with particles added!")
-                graphs_page()
-            
-            button_frame = Frame(self.root)
-            button_frame.pack()
-            Button(button_frame, text="Add Particle", command=add_row).pack(side=LEFT, padx=5)
-            Button(button_frame, text="Remove Particle(s)", command=remove_selected_row).pack(side=LEFT)
-
-            Label(self.root, text="Or add particles using the command-line style in the following format:").pack()
-            Label(self.root,
-                            text="CHARGE MASS INITIAL_POSITION INITIAL_VELOCITY RADIUS COLOUR",
-                            font=("Courier New", 14, "bold")).pack()
-            
-            input_frame = Frame(self.root)
-            input_frame.pack()
-            particle_input = Entry(input_frame, width=50)
-            particle_input.pack(side=LEFT, padx=5)
-            particle_input.bind("<Return>", lambda event: add_particle_from_text())
-            Button(input_frame, text="Add", command=add_particle_from_text).pack(side=LEFT)
-            
-            Button(self.root, text="Next", command=submit).pack()
         
         Label(self.root, text="Simulation Name:").pack()
         name_entry = Entry(self.root)
@@ -339,9 +207,10 @@ class UI_Manager_class:
         parent_entry.pack()
 
         Label(self.root, text="Simulation Rate (1-20):").pack()
+        
         rate_frame = Frame(self.root)
         rate_frame.pack()
-        rate_entry = Entry(rate_frame, width=5)
+        rate_entry = Entry(rate_frame, width=5, validate="all", validatecommand=(self.validate_int, '%P'))
         rate_entry.pack(side=LEFT)
         rate_entry.insert(0, "10")
         rate_entry.bind("<Return>", update_rate_slider)
@@ -352,7 +221,7 @@ class UI_Manager_class:
         Label(self.root, text="Simulation Duration (0-5 sec):").pack()
         duration_frame = Frame(self.root)
         duration_frame.pack()
-        duration_entry = Entry(duration_frame, width=5)
+        duration_entry = Entry(duration_frame, width=5, validate="all", validatecommand=(self.validate_float, '%P'))
         duration_entry.pack(side=LEFT)
         duration_entry.insert(0, "2.5")
         duration_entry.bind("<Return>", update_duration_slider)
@@ -360,7 +229,232 @@ class UI_Manager_class:
         duration_slider.set(2.5)
         duration_slider.pack(side=LEFT)
 
-        Button(self.root, text="Next", command=particles_page).pack()
+        fields_frame = Frame(self.root)
+        fields_frame.pack()
+        
+        electric_var = BooleanVar()
+        magnetic_var = BooleanVar()
+        gravity_var = BooleanVar()
+        
+        Checkbutton(fields_frame, text="Enable electric fields", variable=electric_var).pack(anchor=W)
+        Checkbutton(fields_frame, text="Enable magnetic fields", variable=magnetic_var).pack(anchor=W)
+        Checkbutton(fields_frame, text="Enable gravitational fields", variable=gravity_var).pack(anchor=W)
+
+        def next_page():
+            self.sim_name = name_entry.get()
+            self.sim_rate = float(rate_entry.get())
+            self.sim_duration = float(duration_entry.get())
+            self.sim_electric_on = electric_var.get()
+            self.sim_magnetic_on = magnetic_var.get()
+            self.sim_gravity_on = gravity_var.get()
+
+
+            if base_sim_var.get() == "Yes":
+                self.dependency_graph.add_dependency(parent_entry.get(), name_entry.get())
+
+            self.particles_page()
+
+        Button(self.root, text="Next", command=next_page).pack()
+
+    def particles_page(self):
+        for widget in self.root.winfo_children():
+            widget.destroy()
+        
+        Label(self.root, text="Particle Information:").pack()
+        
+        sheet_frame = Frame(self.root)
+        sheet_frame.pack()
+        
+        sheet = Sheet(sheet_frame,
+                        headers=["Charge", "Mass", "Position (X,Y,Z)", "Velocity (X,Y,Z)", "Radius", "Colour"],
+                        width=600,
+                        height=250)
+        sheet.set_column_widths([70, 70, 120, 120, 70, 70])
+        sheet.pack()
+        sheet.enable_bindings() 
+        
+        sheet.insert_row(["", "", "", "", "", ""])
+        
+        def add_row():
+            sheet.insert_row(["", "", "", "", "", ""])
+        
+        def remove_selected_row():
+            selected_rows = list(sheet.get_selected_rows())
+            if selected_rows != []:
+                for row in reversed(selected_rows):
+                    sheet.delete_row(row)
+            else:
+                messagebox.showwarning("No particles selected", "You must select the entire particle row. Click the row numbers to select its row")
+            
+        def add_particle_from_text():
+            data = particle_input.get()
+            try:
+                if data:
+                    values = data.split()
+                    if len(values) == 6:
+                        sheet.insert_row(values)
+                else:
+                    raise Exception("Input field is empty")
+            except:
+                message = """
+                Please enter the attributes in the following format: 
+                CHARGE MASS INITIAL_POSITION INITIAL_VELOCITY RADIUS COLOUR
+                
+                For example: 
+                0.25 100 (0,0,0) (0,0,0) 0.25 red 
+                """
+
+                messagebox.showerror("Error", message)
+                
+            particle_input.delete(0, END)
+
+            
+        def submit():
+            color_mapping = {
+                "white": vector(1, 1, 1),
+                "red": vector(1, 0, 0),
+                "green": vector(0, 1, 0),
+                "blue": vector(0, 0, 1),
+                "orange": vector(1, 0.6, 0),
+                "purple": vector(0.4, 0.2, 0.6),
+                "black": vector(0, 0, 0),
+                "yellow": vec(1,1,0),
+                "copper": vector(1,0.7,0.2)
+            }
+
+            particles = []
+            # Attempt to process the rows in the table into particle objects
+            try:
+                for row in sheet.get_sheet_data():  # Get updated values
+                    charge, mass, pos_vector, vel_vector, radius, color = float(row[0]), float(row[1]), self.parse_vector(row[2]), self.parse_vector(row[3]),float(row[4]), color_mapping[row[5].lower()]
+                    new_particle = Particle(charge, mass, pos_vector, vel_vector, vector(0,0,0), radius, color)
+                    particles.append(new_particle)
+            except:
+                messagebox.showerror("Error", "There was an issue while trying to process the list of particles. Check that all the fields are valid and aren't empty.")
+
+            self.store = Data_store(particles)
+            self.store.build(self.sim_name, self.sim_rate, self.sim_increment, self.sim_duration)
+            #messagebox.showinfo("Success", "Simulation setup completed with particles added!")
+            self.graphs_page()
+        
+        button_frame = Frame(self.root)
+        button_frame.pack()
+        Button(button_frame, text="Add Particle", command=add_row).pack(side=LEFT, padx=5)
+        Button(button_frame, text="Remove Particle(s)", command=remove_selected_row).pack(side=LEFT)
+
+        Label(self.root, text="Or add particles using the command-line style in the following format:").pack()
+        Label(self.root,
+                        text="CHARGE MASS INITIAL_POSITION INITIAL_VELOCITY RADIUS COLOUR",
+                        font=("Courier New", 14, "bold")).pack()
+        
+        input_frame = Frame(self.root)
+        input_frame.pack()
+        particle_input = Entry(input_frame, width=50)
+        particle_input.pack(side=LEFT, padx=5)
+        particle_input.bind("<Return>", lambda event: add_particle_from_text())
+        Button(input_frame, text="Add", command=add_particle_from_text).pack(side=LEFT)
+        
+        Button(self.root, text="Next", command=submit).pack()
+
+    def graphs_page(self):
+        for widget in self.root.winfo_children():
+            widget.destroy()
+
+        def toggle_graphs_frame():
+            if analysis_var.get() == "Yes":
+                for child in graph_frame.winfo_children():
+                    child.config(state=NORMAL)
+            else:
+                for child in graph_frame.winfo_children():
+                    child.config(state=DISABLED)
+        
+        Label(self.root, text="Include graphs and analysis?").pack()
+        analysis_var = StringVar(value="No")
+        analysis_frame = Frame(self.root)
+        analysis_frame.pack()
+        Radiobutton(analysis_frame, text="Yes", variable=analysis_var, value="Yes", command=toggle_graphs_frame).pack(side=LEFT)
+        Radiobutton(analysis_frame, text="No", variable=analysis_var, value="No", command=toggle_graphs_frame).pack(side=LEFT)
+        
+        graph_frame = Frame(self.root)
+        graph_frame.pack()
+        Label(graph_frame, text="Graphs to include:").pack()
+
+        kinetic_var = BooleanVar()
+        speed_var = BooleanVar()
+        force_var = BooleanVar()
+        acceleration_var = BooleanVar()
+        
+        Checkbutton(graph_frame, text="Kinetic Energy", variable=kinetic_var).pack(anchor=W)
+        Checkbutton(graph_frame, text="Speed", variable=speed_var).pack(anchor=W)
+        Checkbutton(graph_frame, text="Net Force", variable=force_var).pack(anchor=W)
+        Checkbutton(graph_frame, text="Net Acceleration", variable=acceleration_var).pack(anchor=W)
+        toggle_graphs_frame()
+        
+        Label(self.root, text="Save Simulation Data?").pack()
+        save_var = StringVar(value="None")
+        save_frame = Frame(self.root)
+        save_frame.pack()
+
+        def toggle_filename_entry():
+            if(save_var.get() == "File"):
+                filename_entry.config(state=NORMAL)
+            else:
+                filename_entry.config(state=DISABLED)
+
+        Radiobutton(save_frame, text="Don't Save", variable=save_var, value="None", command=toggle_filename_entry).pack(anchor=W)
+        Radiobutton(save_frame, text="Save to Database", variable=save_var, value="Database", command=toggle_filename_entry).pack(anchor=W)
+        Radiobutton(save_frame, text="Save to File", variable=save_var, value="File", command=toggle_filename_entry).pack(anchor=W)
+        
+        fileinput_frame = Frame(self.root)
+        fileinput_frame.pack()
+        Label(fileinput_frame, text="Filename: ").pack(side=LEFT)
+        filename_entry = Entry(fileinput_frame, width=20, state=DISABLED)
+        filename_entry.pack(side=LEFT)
+
+        
+        def finalize():
+            save_data = save_var.get()
+            filename = filename_entry.get() if save_data == "File" else ""
+            with_analysis = analysis_var.get() == "Yes"
+
+            if save_var.get() == "Database":
+                dsm = Database_manager()
+                dsm.attach_store(self.store)
+                print("Saving to DB...")
+                dsm.dump_to_db(self.current_user)
+                pass
+
+            if save_var.get() == "File":
+                fm = File_Manager()
+                if filename in self.get_filenames():
+                    messagebox.showerror("Invalid filename", "The filename you entered to save the simulation to already exists")
+                    return
+                
+                fm.export_file(filename, self.store)
+                pass
+
+            selected_graphs = []
+            if with_analysis:
+
+                if kinetic_var.get():
+                    selected_graphs.append("Kinetic Energy")
+                if speed_var.get():
+                    selected_graphs.append("Speed")
+                if force_var.get():
+                    selected_graphs.append("Net Force")
+                if acceleration_var.get():
+                    selected_graphs.append("Net Acceleration")
+
+                self.simulation = Sim_With_Analysis(self.store, E=self.sim_electric_on, M=self.sim_magnetic_on, G=self.sim_gravity_on)
+            else:
+                self.simulation = Sim(self.store, E=self.sim_electric_on, M=self.sim_magnetic_on, G=self.sim_gravity_on)
+
+            if with_analysis:
+                self.simulation.load_graphs(selected_graphs)
+                
+            self.start_simulation()
+            
+        Button(self.root, text="Finish", command=finalize).pack()
 
 
     def load_simulation(self):
@@ -381,32 +475,41 @@ class UI_Manager_class:
         file_sim_dropdown = Combobox(self.root, textvariable=file_sim_var, values=file_sims)
         file_sim_dropdown.pack()
 
-        
+
         
         def load_selected_simulation():
             db_sim = db_sim_var.get()
             file_sim = file_sim_var.get()
             
             if db_sim:
-                particle_store = dsm.pull_from_db(sim_name)
+                particle_store = self.db_manager.pull_from_db(db_sim)
                 self.store = Data_store(particle_store)
-                self.store.build(sim_name, self.rate, 0.00001, 5)
+                self.store.build(db_sim, self.rate, 0.00001, 5)
             elif file_sim:
-                messagebox.showinfo("Loading", f"Loading simulation from file: {file_sim}")
+                try:
+                    # Load the Data_store from file
+                    self.store = File_Manager().import_file(file_sim)
+                    self.run_sim_options()
+                except Exception as e:
+                    messagebox.showerror("Error", f"Error while loading file: {e}")
             else:
                 messagebox.showwarning("No Selection", "Please select a simulation to load.")
+                return
                 
         Button(self.root, text="Load", command=load_selected_simulation).pack()
+
+        Label(self.root, text="Simulation settings:").pack()
+
+
 
 
 
     
 manager = UI_Manager_class()
 
-#manager.login_or_register()
-#manager.main_menu()
 #manager.new_simulation()
-manager.load_simulation()
+#manager.login_or_register()
+manager.main_menu()
 
 # Run the Tkinter event loop
 manager.root.mainloop()
