@@ -1,7 +1,7 @@
-from UI_manager import UI_manager_class
+from Interface_manager import Interfacemanager_class
 
 def main():
-    ui = UI_manager_class()
+    ui = Interfacemanager_class()
     ui.start()
 
 if __name__ == "__main__":
