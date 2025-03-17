@@ -33,6 +33,7 @@ def on_mousemove(evt):
 def on_mouseup(evt):
     global dragging
     dragging = False
+    scene.delete()
 
 # Bind the event handlers.
 scene.bind("mousedown", on_mousedown)

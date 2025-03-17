@@ -5,6 +5,7 @@ from Particle_manager import *
 
 from vpython import canvas, button, slider, wtext, rate, vector
 from copy import deepcopy
+import sys
 
 class Sim(Collision_Handler):
     def __init__(self, data_store_obj, e=1, E=True, M=True, G=True):
@@ -49,6 +50,7 @@ class Sim(Collision_Handler):
 
         # Pause/Resume control
         self.running = False
+
         button(text="Run", pos=self.scene.title_anchor, bind=self.toggle_run)
 
         # Add sliders for each particle
@@ -64,7 +66,48 @@ class Sim(Collision_Handler):
 
         self.add_recalc_section()
 
+    def clear_window(self):
+        self.scene.delete()
+        self.scene.caption = ""
+        self.scene.title = ""
 
+    def rebuild_simulation(self):
+        self.clear_window()
+        
+        orig = self.original_sim
+
+        self = Sim(orig.store, E=self.E, M=self.M, G=self.G)
+        self.pre_compute()
+        self.Run()
+
+    def check_changes(self):
+        changes = []
+        orig = self.original_sim
+
+        if self.E != orig.E:
+            change = "off -> on" if self.E else "on -> off"
+            changes.append(f"Electric fields: {change}")
+        if self.M != orig.M:
+            change = "off -> on" if self.M else "on -> off"
+            changes.append(f"Magnetic fields: {change}")
+        if self.G != orig.G:
+            change = "off -> on" if self.G else "on -> off"
+            changes.append(f"Gravitational fields: {change}")
+
+        if changes != []:
+            message = " Simulation is out of date:\n\n"
+
+            for change in changes:
+                message += "  - "
+                message += change
+                message += "\n"
+
+            message += "\n Click recalculate to see new simulation"
+
+            self.recalc_status_label.text = message
+        else:
+            self.recalc_status_label.text = " Simulation is up to date"
+        
 
     def toggle_run(self, b):
         """Toggle the running state of the simulation."""
@@ -111,6 +154,7 @@ class Sim(Collision_Handler):
         slider_data = next(sl for sl in self.sliders 
                           if sl["mass_slider"] == s)
         slider_data["mass_text"].text = f'{s.value:.2f}'
+        self.check_changes()
 
     def set_charge(self, s, particle):
         particle.charge = s.value
@@ -120,6 +164,7 @@ class Sim(Collision_Handler):
         slider_data = next(sl for sl in self.sliders 
                           if sl["charge_slider"] == s)
         slider_data["charge_text"].text = f'{s.value:.2f}'
+        self.check_changes()
 
     def _add_time_slider(self):
         """Add a time slider to move forward and backward in time."""
@@ -166,37 +211,34 @@ class Sim(Collision_Handler):
         """Adds a section which keeps track of changes to settings/properties and gives the
            user the option to recalculate the sim"""
         
-        
-        
         self.scene.append_to_caption("\n\n")
-        self.recalc_status_label = wtext(text = "Simulation is up to date")
-        self.scene.append_to_caption("\n")
-        print(self.original_sim)
+        self.recalc_status_label = wtext(text = " Simulation is up to date")
+        self.scene.append_to_caption("\n\n ")
 
         def change():
             self.recalc_status_label.text = "Text changed"
 
-        button(text="Recalculate", bind=self.recalc_simulation)
+        button(text="Recalculate", bind=self.rebuild_simulation)
         #self.recalc_status = label(text="Simulation is up to date")
-
-    def recalc_simulation(self):
-        self.pre_compute()
 
     def toggle_electric_field(self, evt):
         self.E = evt.checked
         self._update_acc_update_funcs()
         self.live_update = True  # Force recompute
+        self.check_changes()
 
     def toggle_magnetic_field(self, evt):
         """Toggle the magnetic field on or off."""
         self.M = evt.checked
         self._update_acc_update_funcs()
+        self.check_changes()
 
     def toggle_gravitational_field(self, evt):
         """Toggle the gravitational field on or off."""
         self.G = evt.checked
         self._update_acc_update_funcs()
         self.live_update = True  # Force recompute
+        self.check_changes()
 
     def _update_acc_update_funcs(self):
         """Rebuild the acceleration update functions list based on enabled fields."""
