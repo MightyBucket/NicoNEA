@@ -64,15 +64,13 @@ class UI_Manager_class:
 
     def authentication(self):
         # Create a welcome sign
-        welcome_label1 = Label(self.root,
+        Label(self.root,
                             text="NEA Particle simulator",
-                            font=("Helvetica", 50, "bold"))
-        welcome_label1.pack()
+                            font=("Helvetica", 50, "bold")).pack()
 
-        welcome_label2 = Label(self.root,
+        Label(self.root,
                             text="Enter school code to begin: ",
-                            font=("Helvetica", 30, "bold"))
-        welcome_label2.pack(pady=20)
+                            font=("Helvetica", 30, "bold")).pack(pady=20)
 
 
         # School code controls
@@ -470,30 +468,136 @@ class UI_Manager_class:
         file_sim_dropdown = Combobox(self.root, textvariable=file_sim_var, values=file_sims)
         file_sim_dropdown.pack()
 
+        Label(self.root, text="Simulation settings:").pack()
 
+        def update_rate_entry(val):
+            rate_entry.delete(0, END)
+            rate_entry.insert(0, str(int(float(val))))
+        
+        def update_rate_slider(event):
+            rate_slider.set(int(rate_entry.get()))
+
+        def update_duration_entry(val):
+            duration_entry.delete(0, END)
+            duration_entry.insert(0, str(float(val)))
+        
+        def update_duration_slider(event):
+            duration_slider.set(float(duration_entry.get()))
+
+        Label(self.root, text="Simulation Rate (1-20):").pack()
+        
+        rate_frame = Frame(self.root)
+        rate_frame.pack()
+        rate_entry = Entry(rate_frame, width=5, validate="all", validatecommand=(self.validate_int, '%P'))
+        rate_entry.pack(side=LEFT)
+        rate_entry.insert(0, "10")
+        rate_entry.bind("<Return>", update_rate_slider)
+        rate_slider = Scale(rate_frame, from_=1, to=20, orient=HORIZONTAL, command=update_rate_entry)
+        rate_slider.set(10)
+        rate_slider.pack(side=LEFT)
+
+        Label(self.root, text="Simulation Duration (0-5 sec):").pack()
+        duration_frame = Frame(self.root)
+        duration_frame.pack()
+        duration_entry = Entry(duration_frame, width=5, validate="all", validatecommand=(self.validate_float, '%P'))
+        duration_entry.pack(side=LEFT)
+        duration_entry.insert(0, "2.5")
+        duration_entry.bind("<Return>", update_duration_slider)
+        duration_slider = Scale(duration_frame, from_=0, to=5, resolution=0.1, orient=HORIZONTAL, command=update_duration_entry)
+        duration_slider.set(2.5)
+        duration_slider.pack(side=LEFT)
+
+        fields_frame = Frame(self.root)
+        fields_frame.pack()
+        
+        electric_var = BooleanVar()
+        magnetic_var = BooleanVar()
+        gravity_var = BooleanVar()
+        
+        Checkbutton(fields_frame, text="Enable electric fields", variable=electric_var).pack(anchor=W)
+        Checkbutton(fields_frame, text="Enable magnetic fields", variable=magnetic_var).pack(anchor=W)
+        Checkbutton(fields_frame, text="Enable gravitational fields", variable=gravity_var).pack(anchor=W)
+
+        def toggle_graphs_frame():
+            if analysis_var.get() == "Yes":
+                for child in graph_frame.winfo_children():
+                    child.config(state=NORMAL)
+            else:
+                for child in graph_frame.winfo_children():
+                    child.config(state=DISABLED)
+        
+        Label(self.root, text="Include graphs and analysis?").pack()
+        analysis_var = StringVar(value="No")
+        analysis_frame = Frame(self.root)
+        analysis_frame.pack()
+        Radiobutton(analysis_frame, text="Yes", variable=analysis_var, value="Yes", command=toggle_graphs_frame).pack(side=LEFT)
+        Radiobutton(analysis_frame, text="No", variable=analysis_var, value="No", command=toggle_graphs_frame).pack(side=LEFT)
+        
+        graph_frame = Frame(self.root)
+        graph_frame.pack()
+        Label(graph_frame, text="Graphs to include:").pack()
+
+        kinetic_var = BooleanVar()
+        speed_var = BooleanVar()
+        force_var = BooleanVar()
+        acceleration_var = BooleanVar()
+        
+        Checkbutton(graph_frame, text="Kinetic Energy", variable=kinetic_var).pack(anchor=W)
+        Checkbutton(graph_frame, text="Speed", variable=speed_var).pack(anchor=W)
+        Checkbutton(graph_frame, text="Net Force", variable=force_var).pack(anchor=W)
+        Checkbutton(graph_frame, text="Net Acceleration", variable=acceleration_var).pack(anchor=W)
+        toggle_graphs_frame()
         
         def load_selected_simulation():
             db_sim = db_sim_var.get()
             file_sim = file_sim_var.get()
+            with_analysis = analysis_var.get() == "Yes"
+
+            self.sim_rate = float(rate_entry.get())
+            self.sim_duration = float(duration_entry.get())
+            self.sim_electric_on = electric_var.get()
+            self.sim_magnetic_on = magnetic_var.get()
+            self.sim_gravity_on = gravity_var.get()
+
+            selected_graphs = []
+            if with_analysis:
+                if kinetic_var.get():
+                    selected_graphs.append("Kinetic Energy")
+                if speed_var.get():
+                    selected_graphs.append("Speed")
+                if force_var.get():
+                    selected_graphs.append("Net Force")
+                if acceleration_var.get():
+                    selected_graphs.append("Net Acceleration")
             
             if db_sim:
+                self.sim_name = db_sim
                 particle_store = self.db_manager.pull_from_db(db_sim)
                 self.store = Data_store(particle_store)
-                self.store.build(db_sim, 20, 0.00001, 5)
+                self.store.build(db_sim, self.sim_rate, 0.00001, self.sim_duration)
             elif file_sim:
                 try:
                     # Load the Data_store from file
                     self.store = File_Manager().import_file(file_sim)
-                    self.run_sim_options()
+                    #self.run_sim_options()
                 except Exception as e:
                     messagebox.showerror("Error", f"Error while loading file: {e}")
+                    return
             else:
                 messagebox.showwarning("No Selection", "Please select a simulation to load.")
                 return
+            
+            if with_analysis:
+                self.simulation = Sim_With_Analysis(self.store, E=self.sim_electric_on, M=self.sim_magnetic_on, G=self.sim_gravity_on)
+            else:
+                self.simulation = Sim(self.store, E=self.sim_electric_on, M=self.sim_magnetic_on, G=self.sim_gravity_on)
+
+            self.simulation.pre_compute()
+            self.simulation.Run()
                 
         Button(self.root, text="Load", command=load_selected_simulation).pack()
 
-        Label(self.root, text="Simulation settings:").pack()
+        
 
 
 
@@ -504,7 +608,9 @@ manager = UI_Manager_class()
 
 #manager.new_simulation()
 #manager.login_or_register()
-manager.authentication()
+#manager.load_simulation()
+#manager.authentication()
+manager.main_menu()
 
 # Run the Tkinter event loop
 manager.root.mainloop()
