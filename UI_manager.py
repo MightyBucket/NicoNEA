@@ -504,7 +504,7 @@ manager = UI_Manager_class()
 
 #manager.new_simulation()
 #manager.login_or_register()
-manager.main_menu()
+manager.authentication()
 
 # Run the Tkinter event loop
 manager.root.mainloop()
