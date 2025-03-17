@@ -14,11 +14,6 @@ black = "#000000"
 
 text_colour = black
 
-# Create the main window
-#self.root = Tk()
-#self.root.title("NEA Particle simulator")
-#self.root.geometry("1280x720")
-
 class UI_Manager_class:
 
     def __init__(self):
@@ -451,7 +446,7 @@ class UI_Manager_class:
 
             if with_analysis:
                 self.simulation.load_graphs(selected_graphs)
-                
+
             self.start_simulation()
             
         Button(self.root, text="Finish", command=finalize).pack()

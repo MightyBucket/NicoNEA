@@ -4,6 +4,7 @@ from Analysis_manager import *
 from Particle_manager import *
 
 from vpython import canvas, button, slider, wtext, rate, vector
+from copy import deepcopy
 
 class Sim(Collision_Handler):
     def __init__(self, data_store_obj, e=1, E=True, M=True, G=True):
@@ -43,6 +44,9 @@ class Sim(Collision_Handler):
         # Add flag for live updates
         self.live_update = True
 
+        # Generate a copy of this simulation for later status updates and comparisons
+        self.original_sim = deepcopy(self)
+
         # Pause/Resume control
         self.running = False
         button(text="Run", pos=self.scene.title_anchor, bind=self.toggle_run)
@@ -57,6 +61,10 @@ class Sim(Collision_Handler):
 
         # Add checkboxes for fields
         self._add_field_checkboxes()
+
+        self.add_recalc_section()
+
+
 
     def toggle_run(self, b):
         """Toggle the running state of the simulation."""
@@ -153,6 +161,26 @@ class Sim(Collision_Handler):
             bind=self.toggle_gravitational_field, text='Gravitational Field', checked=self.G
         )
         self.scene.append_to_caption("\n")
+
+    def add_recalc_section(self):
+        """Adds a section which keeps track of changes to settings/properties and gives the
+           user the option to recalculate the sim"""
+        
+        
+        
+        self.scene.append_to_caption("\n\n")
+        self.recalc_status_label = wtext(text = "Simulation is up to date")
+        self.scene.append_to_caption("\n")
+        print(self.original_sim)
+
+        def change():
+            self.recalc_status_label.text = "Text changed"
+
+        button(text="Recalculate", bind=self.recalc_simulation)
+        #self.recalc_status = label(text="Simulation is up to date")
+
+    def recalc_simulation(self):
+        self.pre_compute()
 
     def toggle_electric_field(self, evt):
         self.E = evt.checked
