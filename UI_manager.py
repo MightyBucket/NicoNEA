@@ -78,7 +78,7 @@ class UI_Manager_class:
         # School code controls
         code_entry = Entry(self.root, font=("Helvetica", 32, "bold"))
         code_entry.pack()
-        code_entry.bind("<Return>", lambda event: check_school_code())
+        code_entry.bind("<Return>", lambda event: check_school_code(code_entry.get()))
 
         submit_button = Button(self.root,
                             text="Submit",
@@ -110,7 +110,7 @@ class UI_Manager_class:
         Label(self.root,text="Password:",font=self.fonts["button"]).pack(pady=10)
         password_entry = Entry(self.root, font=self.fonts["button"], show="*")
         password_entry.pack()
-        password_entry.bind("<Return>", lambda event: validate_login())
+        password_entry.bind("<Return>", lambda event: validate_login(username_entry.get(), password_entry.get()))
 
         Button(self.root, text="Login", font=self.fonts["button"], 
                command=lambda: validate_login(username_entry.get(), password_entry.get())).pack(pady=5)
@@ -120,7 +120,7 @@ class UI_Manager_class:
 
         def validate_login(username, password):
             if self.db_manager.verify_user(username, password):
-                messagebox.showinfo("Success", "Login successful")
+                #messagebox.showinfo("Success", "Login successful")
                 self.current_user = username
                 self.main_menu()
             else:
@@ -479,7 +479,7 @@ class UI_Manager_class:
             if db_sim:
                 particle_store = self.db_manager.pull_from_db(db_sim)
                 self.store = Data_store(particle_store)
-                self.store.build(db_sim, self.rate, 0.00001, 5)
+                self.store.build(db_sim, 20, 0.00001, 5)
             elif file_sim:
                 try:
                     # Load the Data_store from file
