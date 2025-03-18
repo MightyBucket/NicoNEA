@@ -2,7 +2,8 @@ from vpython import *
 
 class Particle:
     def __init__(self, charge, mass, initial_position, initial_velocity, initial_acceleration, radius, colour):
-        self.pos = initial_position
+        self.initial_pos = initial_position
+        self.pos = self.initial_pos
         self.radius = radius
         self.colour = colour
         self.make_trail = False
@@ -39,7 +40,7 @@ class Particle:
     def generate(self):
         if self.object is None:
             self.object = simple_sphere(
-                pos=self.pos, radius=self.radius, make_trail=self.make_trail,
+                pos=self.initial_pos, radius=self.radius, make_trail=self.make_trail,
                 trail_type=self.trail_type, interval=self.interval, retain=self.retain,
                 color=self.colour
             )
@@ -65,7 +66,6 @@ class Particle:
     def handle_mouse_down(self, scene):
         # Use scene.mouse.pick to get the object that was clicked
         picked = scene.mouse.pick
-        #print(f"Picked is {picked} while I am {particle.object}")
         if picked is self.object:
             self.dragging = True
             # Define the drag plane to be perpendicular to the current view
@@ -85,6 +85,7 @@ class Particle:
                 self.object.pos = proj + self.drag_offset
 
     def handle_mouse_up(self):
+        self.initial_pos = self.object.pos
         self.dragging = False
 
     

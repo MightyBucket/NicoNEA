@@ -76,6 +76,13 @@ class Sim(Collision_Handler):
         
         orig = self.original_sim
 
+        for i, particle in enumerate(self.particles.array_particles):
+            orig_particle = orig.particles.array_particles[i]
+            orig_particle.mass = particle.mass
+            orig_particle.charge = particle.charge
+            orig_particle.initial_pos = particle.initial_pos
+            orig_particle.pos = particle.initial_pos
+
         self = Sim(orig.store, E=self.E, M=self.M, G=self.G)
         self.pre_compute()
         self.Run()
@@ -94,6 +101,20 @@ class Sim(Collision_Handler):
             change = "off -> on" if self.G else "on -> off"
             changes.append(f"Gravitational fields: {change}")
 
+        for i, particle in enumerate(self.particles.array_particles):
+            orig_particle = orig.particles.array_particles[i]
+
+            if orig_particle.mass != particle.mass:
+                change = f"{orig_particle.mass} -> {particle.mass}"
+                changes.append(f"Particle {i+1} Mass: {change}")
+            if orig_particle.charge != particle.charge:
+                change = f"{orig_particle.charge} -> {particle.charge}"
+                changes.append(f"Particle {i+1} Charge: {change}")
+            if orig_particle.initial_pos != particle.initial_pos:
+                change = f"{orig_particle.initial_pos} -> {particle.initial_pos}"
+                changes.append(f"Particle {i+1} initial position has changed")
+            pass
+
         if changes != []:
             message = " Simulation is out of date:\n\n"
 
@@ -101,6 +122,9 @@ class Sim(Collision_Handler):
                 message += "  - "
                 message += change
                 message += "\n"
+
+
+            #print(self.particles.array_particles)
 
             message += "\n Click recalculate to see new simulation"
 
@@ -310,6 +334,7 @@ class Sim(Collision_Handler):
     def handle_mouse_up(self):
         for particle in self.particles.array_particles:
             particle.handle_mouse_up()
+        self.check_changes()
 
 
     def Run(self):
