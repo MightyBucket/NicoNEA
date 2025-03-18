@@ -360,7 +360,6 @@ class Sim(Collision_Handler):
 
         # Main simulation loop
         while True:
-            #print(iter_count)
             if self.running:  # Run the simulation only if not paused
                 Sim._update_acc_update_funcs(self)
                 rate(self.rate*100)
@@ -409,9 +408,7 @@ class Sim_With_Analysis(Sim, Analysis_methods):
 
     def clear_graphs(self):
         for graph in self.Graphs:
-            #print(graph)
             self.Graphs[graph].delete()
-        #self.Graphs = {}
         self.Lines = {}
 
     def _get_axis_title(self, att):
