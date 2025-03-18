@@ -66,6 +66,9 @@ class Sim(Collision_Handler):
 
         self.add_recalc_section()
 
+        # Bind mouse events in canvas to enable dragging of particles
+        self.bind_mouse_events()
+
     def clear_window(self):
         self.scene.delete()
         self.scene.caption = ""
@@ -82,6 +85,8 @@ class Sim(Collision_Handler):
             orig_particle.charge = particle.charge
             orig_particle.initial_pos = particle.initial_pos
             orig_particle.pos = particle.initial_pos
+            orig.store.pos_data[i] = [particle.initial_pos]
+
 
         self = Sim(orig.store, E=self.E, M=self.M, G=self.G)
         self.pre_compute()
@@ -122,9 +127,6 @@ class Sim(Collision_Handler):
                 message += "  - "
                 message += change
                 message += "\n"
-
-
-            #print(self.particles.array_particles)
 
             message += "\n Click recalculate to see new simulation"
 
@@ -201,16 +203,17 @@ class Sim(Collision_Handler):
 
     def update_time(self, s):
         """Update the time frame of the simulation."""
-        if not self.running:  # Only allow manual updates when the simulation is paused
-            frame = int(s.value)  # Get the slider's current frame value
-            self.time_text.text = f"Frame: {frame}"
+        #if not self.running:  # Only allow manual updates when the simulation is paused
+        self.iter_count = int(s.value)  # Get the slider's current frame value
+        frame = self.iter_count
+        self.time_text.text = f"Frame: {frame}"
 
-            # Update particle positions for the selected frame
-            particle_index = -1
-            for particle in self.particles.array_particles:
-                particle_index = (particle_index + 1) % self.particles.array_size
-                particle.pos = self.store.pos_data[particle_index][frame]
-                particle.update_obj_position()
+        # Update particle positions for the selected frame
+        particle_index = -1
+        for particle in self.particles.array_particles:
+            particle_index = (particle_index + 1) % self.particles.array_size
+            particle.pos = self.store.pos_data[particle_index][frame]
+            particle.update_obj_position()
 
     def _add_field_checkboxes(self):
         """Add checkboxes to enable/disable electric, magnetic, and gravitational fields."""
@@ -336,6 +339,11 @@ class Sim(Collision_Handler):
             particle.handle_mouse_up()
         self.check_changes()
 
+    def bind_mouse_events(self):
+        self.scene.bind("mousedown", lambda evt: self.handle_mouse_down())
+        self.scene.bind("mousemove", lambda evt: self.handle_mouse_drag())
+        self.scene.bind("mouseup", lambda evt: self.handle_mouse_up())
+
 
     def Run(self):
         frames_left = int(self.run_time / self.dt)
@@ -348,29 +356,22 @@ class Sim(Collision_Handler):
         self._loadParticles()
 
         # Start from the slider’s position
-        iter_count = int(self.time_slider.value) - 1
-
-        # Precompute reusable data
-        #particle_count = len(self.particles.array_particles)
-        #masses = [self.store.initial_conditions[i]["Mass"] for i in range(particle_count)]
-
-        # Bind mouse events for all particles (avoiding repeated calls during pause)
-        self.scene.bind("mousedown", lambda evt: self.handle_mouse_down())
-        self.scene.bind("mousemove", lambda evt: self.handle_mouse_drag())
-        self.scene.bind("mouseup", lambda evt: self.handle_mouse_up())
+        self.iter_count = int(self.time_slider.value) - 1
 
         # Main simulation loop
-        while iter_count < frames_left - 1:
+        while True:
+            #print(iter_count)
             if self.running:  # Run the simulation only if not paused
                 Sim._update_acc_update_funcs(self)
-                rate(self.rate)
-                iter_count += 1
+                rate(self.rate*100)
+                if self.iter_count < (frames_left - 1):
+                    self.iter_count += 1
 
                 # Update the slider's value
-                self.time_slider.value = iter_count
+                self.time_slider.value = self.iter_count
 
                 # Batch extraction of frame data
-                frame_pos_data = [pos[iter_count] for pos in self.store.pos_data]
+                frame_pos_data = [pos[self.iter_count] for pos in self.store.pos_data]
 
                 # Batch update of particle positions
                 for particle, pos in zip(self.particles.array_particles, frame_pos_data):
@@ -395,6 +396,7 @@ class Sim_With_Analysis(Sim, Analysis_methods):
         self.var_to_func = Analysis_methods().var_to_func
 
     def load_graphs(self, arr_vars):
+        self.graph_vars = arr_vars
         for variable in arr_vars:
             if variable not in self.graph_units.keys():
                 return NameError("The variable given is not one of the options")
@@ -402,12 +404,39 @@ class Sim_With_Analysis(Sim, Analysis_methods):
         self.Graphs = {}
         self.Lines = {}
         for variable in arr_vars:
-
             self.Graphs[variable] = graph(width=1000, height=600, align="left", title="{} vs Time".format(variable), xtitle="Time /s", ytitle=self._get_axis_title(variable), foreground=color.black, background=color.white)
             self.Lines[variable] = [gcurve(graph=self.Graphs[variable], color=par_desc["Colour"]) for par_desc in self.store.initial_conditions]
 
+    def clear_graphs(self):
+        for graph in self.Graphs:
+            #print(graph)
+            self.Graphs[graph].delete()
+        #self.Graphs = {}
+        self.Lines = {}
+
     def _get_axis_title(self, att):
         return "{} /{}".format(att, self.graph_units[att])
+    
+    def rebuild_simulation(self):
+        self.clear_window()
+        self.clear_graphs()
+        
+        orig = self.original_sim
+        orig_graph_vars = self.graph_vars
+
+        for i, particle in enumerate(self.particles.array_particles):
+            orig_particle = orig.particles.array_particles[i]
+            orig_particle.mass = particle.mass
+            orig_particle.charge = particle.charge
+            orig_particle.initial_pos = particle.initial_pos
+            orig_particle.pos = particle.initial_pos
+            orig.store.pos_data[i] = [particle.initial_pos]
+
+
+        self = Sim_With_Analysis(orig.store, E=self.E, M=self.M, G=self.G)
+        self.load_graphs(orig_graph_vars)
+        self.pre_compute()
+        self.Run()
 
     def Run(self):
         frames_left = int(self.run_time / self.dt)
@@ -418,37 +447,44 @@ class Sim_With_Analysis(Sim, Analysis_methods):
         for particle, pos_data in zip(self.particles.array_particles, self.store.pos_data):
             particle.pos = pos_data[0]
 
-        iter_count = 0
+        self.iter_count = 0
 
         # Precompute constants and avoid repetitive dictionary lookups
         masses = [self.store.initial_conditions[i]["Mass"] for i in range(self.particles.array_size)]
 
         # Main simulation loop
-        while iter_count < frames_left:
+        while True:
             #if not self.running:
             #    rate(self.rate)  # Ensures smooth rendering while paused
             #    continue
-            time += self.dt
-            rate(self.rate)
+            if self.running:
+                time += self.dt
+                rate(self.rate*1000)
 
-            # Extract frame-specific data for all particles in one step
-            frame_pos_data = [pos[iter_count] for pos in self.store.pos_data]
-            frame_vel_data = [vel[iter_count] for vel in self.store.vel_data]
-            frame_acc_data = [acc[iter_count] for acc in self.store.acc_data]
+                # Update the slider's value
+                self.time_slider.value = self.iter_count
 
-            # Update all particles
-            for idx, (particle, pos, vel, acc, mass) in enumerate(
-                zip(self.particles.array_particles, frame_pos_data, frame_vel_data, frame_acc_data, masses)
-            ):
-                particle.pos = pos
-                particle.velocity = vel
-                particle.acceleration = acc
+                # Extract frame-specific data for all particles in one step
+                frame_pos_data = [pos[self.iter_count] for pos in self.store.pos_data]
+                frame_vel_data = [vel[self.iter_count] for vel in self.store.vel_data]
+                frame_acc_data = [acc[self.iter_count] for acc in self.store.acc_data]
 
-                particle.update_obj_position()
+                # Update all particles
+                for idx, (particle, pos, vel, acc, mass) in enumerate(
+                    zip(self.particles.array_particles, frame_pos_data, frame_vel_data, frame_acc_data, masses)
+                ):
+                    particle.pos = pos
+                    particle.velocity = vel
+                    particle.acceleration = acc
 
-                # Update lines for each variable using the external index
-                for variable, line_array in self.Lines.items():
-                    dependent_d = self.var_to_func[variable](vel_v=vel, mass=mass, acc_v=acc)
-                    line_array[idx].plot(time, dependent_d)
+                    particle.update_obj_position()
 
-            iter_count += 1
+                    # Update lines for each variable using the external index
+                    for variable, line_array in self.Lines.items():
+                        dependent_d = self.var_to_func[variable](vel_v=vel, mass=mass, acc_v=acc)
+                        line_array[idx].plot(time, dependent_d)
+                    
+                if self.iter_count < (frames_left - 1):
+                    self.iter_count += 1
+            else:
+                rate(10)
