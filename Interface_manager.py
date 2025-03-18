@@ -153,6 +153,7 @@ class Interfacemanager_class:
                     print(analysis.find_min_max(variable))
         self.simulation = Sim_With_Analysis(self.store, E=isE, M=isM, G=isG) if with_analysis else Sim(self.store, E=isE, M=isM, G=isG)
 
+        print(f"Graph variables: {graph_variables}")
         if with_analysis:
             self.simulation.load_graphs(graph_variables)
 
@@ -228,6 +229,7 @@ class Interfacemanager_class:
                 print(f"Error loading file: {e}")
 
     def run_sim_options(self):
+
         isE, isM, isG = (self.y_n_input(msg) for msg in [self.sim_isE_msg, self.sim_isM_msg, self.sim_isG_msg])
         with_analysis = self.y_n_input(self.ask_analys_msg)
         graph_variables = self.analysis_var_input() if with_analysis else None

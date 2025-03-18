@@ -25,12 +25,12 @@ class Analysis_methods():
         return arr[0] + self._recursive_sum(arr[1:])
 
 
-    @lru_cache(maxsize=1000)
+    #@lru_cache(maxsize=1000)
     def v_size(self, vel_v):
         return (vel_v.x**2 + vel_v.y**2 + vel_v.z**2)**0.5
     
-    @lru_cache(maxsize=1000)
-    def get_KE(self, vel_v, mass):
+    #@lru_cache(maxsize=1000)
+    def get_KE(self, vel_v, mass, acc_v=None):
         return 0.5 * mass * self.v_size(vel_v)**2
 
     # The following functions take the same inputs, because these will be returned as values from the dictionary
@@ -57,6 +57,8 @@ class Analysis_handler(Analysis_methods):
     def process_data(self, var_name):
         result_data = []
         func = self.var_to_func[var_name]
+        print(f"Velocities: {self.vel_data}")
+        print(f"Accs: {self.acc_data}")
         for i in range(len(self.masses)):
             par_data = []
             for j in range(len(self.vel_data[i])):
