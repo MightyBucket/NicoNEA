@@ -37,7 +37,7 @@ class UI_Manager_class:
         self.validate_int = (self.root.register(lambda P: str.isdigit(P) or P == ""))
         def isFloat(P):
             try:
-                return True if P == "" else float(P)
+                return True if P == "" or P == "0" or P == "0." else float(P)
             except:
                 return False
         self.validate_float = (self.root.register(isFloat))
@@ -61,6 +61,10 @@ class UI_Manager_class:
     def parse_vector(self, inp):
         x, y, z = map(int, inp.strip("()").split(","))
         return vector(x, y, z)
+    
+    def start(self):        
+        self.authentication()
+        self.root.mainloop()
 
     def authentication(self):
         # Create a welcome sign
@@ -73,10 +77,11 @@ class UI_Manager_class:
                             font=("Helvetica", 30, "bold")).pack(pady=20)
 
 
-        # School code controls
+        # School code text entry
         code_entry = Entry(self.root, font=("Helvetica", 32, "bold"))
         code_entry.pack()
         code_entry.bind("<Return>", lambda event: check_school_code(code_entry.get()))
+        code_entry.focus()
 
         submit_button = Button(self.root,
                             text="Submit",
@@ -87,7 +92,6 @@ class UI_Manager_class:
 
         def check_school_code(code):
             if code == "Hampton":
-                #messagebox.showinfo("Success", "Valid school code. Please login or register to continue.")
                 self.login_or_register()
 
             else:
@@ -104,6 +108,7 @@ class UI_Manager_class:
         Label(self.root, text="Username:", font=self.fonts["button"]).pack(pady=10)
         username_entry = Entry(self.root, font=self.fonts["button"])
         username_entry.pack()
+        username_entry.focus()
 
         Label(self.root,text="Password:",font=self.fonts["button"]).pack(pady=10)
         password_entry = Entry(self.root, font=self.fonts["button"], show="*")
@@ -118,7 +123,6 @@ class UI_Manager_class:
 
         def validate_login(username, password):
             if self.db_manager.verify_user(username, password):
-                #messagebox.showinfo("Success", "Login successful")
                 self.current_user = username
                 self.main_menu()
             else:
@@ -127,7 +131,6 @@ class UI_Manager_class:
 
         def validate_registration(username, password):
             if self.db_manager.create_user(username, password):
-                #messagebox.showinfo("Success", f"Welcome {username}!")
                 self.current_user = username
                 self.main_menu()
             else:
@@ -579,7 +582,6 @@ class UI_Manager_class:
                 try:
                     # Load the Data_store from file
                     self.store = File_Manager().import_file(file_sim)
-                    #self.run_sim_options()
                 except Exception as e:
                     messagebox.showerror("Error", f"Error while loading file: {e}")
                     return
@@ -589,6 +591,7 @@ class UI_Manager_class:
             
             if with_analysis:
                 self.simulation = Sim_With_Analysis(self.store, E=self.sim_electric_on, M=self.sim_magnetic_on, G=self.sim_gravity_on)
+                self.simulation.load_graphs(selected_graphs)
             else:
                 self.simulation = Sim(self.store, E=self.sim_electric_on, M=self.sim_magnetic_on, G=self.sim_gravity_on)
 
@@ -604,13 +607,10 @@ class UI_Manager_class:
 
 
     
-manager = UI_Manager_class()
+#manager = UI_Manager_class()
 
-#manager.new_simulation()
-#manager.login_or_register()
-#manager.load_simulation()
+
 #manager.authentication()
-manager.main_menu()
 
 # Run the Tkinter event loop
-manager.root.mainloop()
+#manager.root.mainloop()

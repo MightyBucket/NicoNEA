@@ -2,7 +2,7 @@ import sqlite3
 import os.path
 from Particle_manager import *
 import json
-from bcrypt import *
+import bcrypt
 
 class File_Manager():
     def __init__(self):
@@ -116,8 +116,7 @@ class Database_manager():
             if not result:
                 return False  # User doesn't exist
                 
-            stored_hash = result[0].encode('utf-8')
-            return checkpw(password.encode('utf-8'), stored_hash)
+            return self.check_password(password, result[0])
             
         except sqlite3.Error as e:
             print(f"Database error: {e}")
@@ -385,19 +384,27 @@ class Database_manager():
 
         connection.commit()
         connection.close()
+
+    def hash_password(self, password):
+        salt = bcrypt.gensalt()
+        hashed_password = bcrypt.hashpw(password.encode('utf-8'), salt)
+        return hashed_password
+    
+    def check_password(self, password_to_check, hashed_password):
+        return bcrypt.checkpw(password_to_check.encode('utf-8'), hashed_password)
     
     def create_user(self, username, password):
         if not username or not password:
             return False
         # Hash password
-        hashed = hashpw(password.encode('utf-8'), gensalt())
+        hashed = self.hash_password(password)
         
         try:
-            print(f"DB path is {self.db_path}")
+            #print(f"DB path is {self.db_path}")
             connection = sqlite3.connect(self.db_path)
             cursor = connection.cursor()
             cursor.execute("INSERT INTO Users (Username, PasswordHash) VALUES (?, ?)", 
-                        (username, hashed.decode('utf-8')))
+                        (username, hashed))
             connection.commit()
             return True
         except sqlite3.IntegrityError:
