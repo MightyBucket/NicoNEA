@@ -607,10 +607,10 @@ class UI_Manager_class:
 
 
     
-#manager = UI_Manager_class()
+manager = UI_Manager_class()
 
 
-#manager.authentication()
+manager.authentication()
 
 # Run the Tkinter event loop
-#manager.root.mainloop()
+manager.root.mainloop()
