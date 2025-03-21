@@ -27,6 +27,7 @@ class UI_Manager_class:
 
         # Simulation variables
         self.simulation = None
+        self.parent_particles = []
         self.store = None
         self.current_user = None
         self.db_manager = Database_manager()
@@ -41,6 +42,19 @@ class UI_Manager_class:
             except:
                 return False
         self.validate_float = (self.root.register(isFloat))
+
+        # Colour translation dictionary used when adding particles
+        self.color_mapping = {
+                "white": vector(1, 1, 1),
+                "red": vector(1, 0, 0),
+                "green": vector(0, 1, 0),
+                "blue": vector(0, 0, 1),
+                "orange": vector(1, 0.6, 0),
+                "purple": vector(0.4, 0.2, 0.6),
+                "black": vector(0, 0, 0),
+                "yellow": vec(1,1,0),
+                "copper": vector(1,0.7,0.2)
+            }
 
 
     def clear_window(self):
@@ -167,11 +181,16 @@ class UI_Manager_class:
         self.clear_window()
 
         def toggle_parent_entry():
-            if base_sim_var.get() == "Yes":
-                parent_entry.config(state=NORMAL)
-            else:
-                parent_entry.config(state=DISABLED)
-                parent_entry.delete(0, END)
+            if base_sim_var.get() == "No":
+                parent_dropdown.config(state=DISABLED)
+            elif base_sim_var.get() == "Database":
+                parent_dropdown['values'] = db_sims
+                parent_dropdown.config(state=NORMAL)
+            elif base_sim_var.get() == "File":
+                parent_dropdown['values'] = file_sims
+                parent_dropdown.config(state=NORMAL)
+                
+            parent_dropdown.delete(0, END)
         
         def update_rate_entry(val):
             rate_entry.delete(0, END)
@@ -195,12 +214,19 @@ class UI_Manager_class:
         base_sim_var = StringVar(value="No")
         base_frame = Frame(self.root)
         base_frame.pack()
-        Radiobutton(base_frame, text="Yes", variable=base_sim_var, value="Yes", command=toggle_parent_entry).pack(side=LEFT)
         Radiobutton(base_frame, text="No", variable=base_sim_var, value="No", command=toggle_parent_entry).pack(side=LEFT)
-        
-        Label(self.root, text="Existing Simulation Name:").pack()
-        parent_entry = Entry(self.root, state=DISABLED)
-        parent_entry.pack()
+        Radiobutton(base_frame, text="From database", variable=base_sim_var, value="Database", command=toggle_parent_entry).pack(side=LEFT)
+        Radiobutton(base_frame, text="From file", variable=base_sim_var, value="File", command=toggle_parent_entry).pack(side=LEFT)
+
+        # Dropdown for selecting existing simulation from database or file
+        db_sims = self.db_manager.get_all_names()
+        file_sims = self.get_filenames()
+    
+        parent_var = StringVar()
+        parent_dropdown = Combobox(self.root, textvariable=parent_var, values=db_sims)
+        parent_dropdown.pack()
+        parent_dropdown.config(state=DISABLED)
+
 
         Label(self.root, text="Simulation Rate (1-20):").pack()
         
@@ -245,8 +271,26 @@ class UI_Manager_class:
             self.sim_gravity_on = gravity_var.get()
 
 
-            if base_sim_var.get() == "Yes":
-                self.dependency_graph.add_dependency(parent_entry.get(), name_entry.get())
+            if base_sim_var.get() != "No":
+                parent_sim = parent_dropdown.get()
+                self.dependency_graph.add_dependency(parent_sim, name_entry.get())
+                
+                if base_sim_var.get() == "Database":
+                    particle_store = self.db_manager.pull_from_db(parent_sim)
+                    print("Loaded from database")
+                    print(f"Particle store: {particle_store}")
+                    self.parent_particles = particle_store
+                    #self.store = Data_store(particle_store)
+                elif base_sim_var.get() == "File":
+                    try:
+                        # Load the Data_store from file
+                        data_store = File_Manager().import_file(parent_sim)
+                        self.parent_particles = data_store.particles
+                        print("Loaded from file")
+                        print(f"Particle store: {self.parent_particles}")
+                    except Exception as e:
+                        messagebox.showerror("Error", f"Error while loading simulation from file: {e}")
+                        return
 
             self.particles_page()
 
@@ -268,11 +312,20 @@ class UI_Manager_class:
         sheet.set_column_widths([70, 70, 120, 120, 70, 70])
         sheet.pack()
         sheet.enable_bindings() 
+
+        # Preload particles from parent simulation if one was chosen
+        for particle in self.parent_particles:
+            colour = next(key for key, value in self.color_mapping.items() if value == particle.colour)
+            position = (particle.pos.x, particle.pos.y, particle.pos.z)
+            velocity = (particle.velocity.x, particle.velocity.y, particle.velocity.z)
+            sheet.insert_row([particle.mass, particle.charge, position, velocity, particle.radius, colour])
         
-        sheet.insert_row(["", "", "", "", "", ""])
-        
-        def add_row():
+        # If the table is empty, add an empty row for the user to enter their first particle
+        if len(sheet.get_sheet_data()) == 0:
             sheet.insert_row(["", "", "", "", "", ""])
+        
+        def add_row(charge="1", mass="1", pos="(0,0,0)", vel="(0,0,0)", radius="0.25", colour="red"):
+            sheet.insert_row([charge, mass, pos, vel, radius, colour])
         
         def remove_selected_row():
             selected_rows = list(sheet.get_selected_rows())
@@ -280,9 +333,14 @@ class UI_Manager_class:
                 for row in reversed(selected_rows):
                     sheet.delete_row(row)
             else:
-                messagebox.showwarning("No particles selected", "You must select the entire particle row. Click the row numbers to select its row")
+                messagebox.showwarning("No particles selected", "No rows were selected. Click the row numbers to select its row then click delete")
             
         def add_particle_from_text():
+            # If the table only includes the empty row added at the start, remove it
+            print(sheet.get_sheet_data())
+            if (sheet.get_sheet_data() == ["", "", "", "", "", ""]):
+                sheet.delete_row(0)
+
             data = particle_input.get()
             try:
                 if data:
@@ -327,16 +385,22 @@ class UI_Manager_class:
                     particles.append(new_particle)
             except:
                 messagebox.showerror("Error", "There was an issue while trying to process the list of particles. Check that all the fields are valid and aren't empty.")
-
-            self.store = Data_store(particles)
-            self.store.build(self.sim_name, self.sim_rate, self.sim_increment, self.sim_duration)
-            #messagebox.showinfo("Success", "Simulation setup completed with particles added!")
-            self.graphs_page()
+            else:
+                self.store = Data_store(particles)
+                self.store.build(self.sim_name, self.sim_rate, self.sim_increment, self.sim_duration)
+                self.graphs_page()
         
         button_frame = Frame(self.root)
         button_frame.pack()
         Button(button_frame, text="Add Particle", command=add_row).pack(side=LEFT, padx=5)
         Button(button_frame, text="Remove Particle(s)", command=remove_selected_row).pack(side=LEFT)
+
+        Label(self.root, text="Particle presets:").pack()
+        presets_frame = Frame(self.root)
+        presets_frame.pack()
+        Button(presets_frame, text="Add Proton", command=lambda: add_row(charge="0.25", mass="100", colour="red")).pack(side=LEFT)
+        Button(presets_frame, text="Add Electron", command=lambda: add_row(charge="-0.25", mass="10", colour="blue")).pack(side=LEFT)
+        Button(presets_frame, text="Add Neutron", command=lambda: add_row(charge="0", mass="100", colour="green")).pack(side=LEFT)
 
         Label(self.root, text="Or add particles using the command-line style in the following format:").pack()
         Label(self.root,
@@ -610,7 +674,8 @@ class UI_Manager_class:
 manager = UI_Manager_class()
 
 
-manager.authentication()
+#manager.authentication()
+manager.new_simulation()
 
 # Run the Tkinter event loop
 manager.root.mainloop()

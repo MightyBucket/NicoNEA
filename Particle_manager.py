@@ -7,6 +7,7 @@ class Particle:
         self.radius = radius
         self.colour = colour
         self.make_trail = False
+        #self.is_test_particle
         
         self.trail_type = "points"
         self.interval = 20
