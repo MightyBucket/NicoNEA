@@ -324,12 +324,6 @@ class Database_manager():
                         ParticleCount INTEGER,
                         FOREIGN KEY (CreatorID) REFERENCES Users(UserID)
                             )""")
-            cursor.execute("""
-            CREATE TABLE IF NOT EXISTS Users (
-                UserID INTEGER PRIMARY KEY,
-                Username TEXT UNIQUE,
-                PasswordHash TEXT
-            )""")
             
             cursor.execute("""
             CREATE TABLE IF NOT EXISTS SimulationDependencies (
