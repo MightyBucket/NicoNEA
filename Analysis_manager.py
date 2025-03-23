@@ -57,8 +57,6 @@ class Analysis_handler(Analysis_methods):
     def process_data(self, var_name):
         result_data = []
         func = self.var_to_func[var_name]
-        print(f"Velocities: {self.vel_data}")
-        print(f"Accs: {self.acc_data}")
         for i in range(len(self.masses)):
             par_data = []
             for j in range(len(self.vel_data[i])):

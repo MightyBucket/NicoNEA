@@ -7,6 +7,7 @@ from Simulation_manager import *
 from Database_manager import *
 from os import listdir
 from os.path import isfile, join
+from multiprocessing import Process
 import pathlib
 
 orange = "#cd9448"
@@ -68,12 +69,20 @@ class UI_Manager_class:
         self.root.destroy()
 
     def start_simulation(self):
-        self.clear_window()
+        self.exit()
+
+        if self.with_analysis:
+            self.simulation = Sim_With_Analysis(self.store, E=self.sim_electric_on, M=self.sim_magnetic_on, G=self.sim_gravity_on)
+            self.simulation.load_graphs(self.selected_graphs)
+        else:
+            self.simulation = Sim(self.store, E=self.sim_electric_on, M=self.sim_magnetic_on, G=self.sim_gravity_on)
+                
+
         self.simulation.pre_compute()
         self.simulation.Run()
 
     def parse_vector(self, inp):
-        x, y, z = map(int, inp.strip("()").split(","))
+        x, y, z = inp
         return vector(x, y, z)
     
     def start(self):        
@@ -277,8 +286,6 @@ class UI_Manager_class:
                 
                 if base_sim_var.get() == "Database":
                     particle_store = self.db_manager.pull_from_db(parent_sim)
-                    print("Loaded from database")
-                    print(f"Particle store: {particle_store}")
                     self.parent_particles = particle_store
                     #self.store = Data_store(particle_store)
                 elif base_sim_var.get() == "File":
@@ -286,8 +293,6 @@ class UI_Manager_class:
                         # Load the Data_store from file
                         data_store = File_Manager().import_file(parent_sim)
                         self.parent_particles = data_store.particles
-                        print("Loaded from file")
-                        print(f"Particle store: {self.parent_particles}")
                     except Exception as e:
                         messagebox.showerror("Error", f"Error while loading simulation from file: {e}")
                         return
@@ -318,7 +323,7 @@ class UI_Manager_class:
             colour = next(key for key, value in self.color_mapping.items() if value == particle.colour)
             position = (particle.pos.x, particle.pos.y, particle.pos.z)
             velocity = (particle.velocity.x, particle.velocity.y, particle.velocity.z)
-            sheet.insert_row([particle.mass, particle.charge, position, velocity, particle.radius, colour])
+            sheet.insert_row([particle.charge, particle.mass, position, velocity, particle.radius, colour])
         
         # If the table is empty, add an empty row for the user to enter their first particle
         if len(sheet.get_sheet_data()) == 0:
@@ -337,7 +342,6 @@ class UI_Manager_class:
             
         def add_particle_from_text():
             # If the table only includes the empty row added at the start, remove it
-            print(sheet.get_sheet_data())
             if (sheet.get_sheet_data() == ["", "", "", "", "", ""]):
                 sheet.delete_row(0)
 
@@ -380,7 +384,7 @@ class UI_Manager_class:
             # Attempt to process the rows in the table into particle objects
             try:
                 for row in sheet.get_sheet_data():  # Get updated values
-                    charge, mass, pos_vector, vel_vector, radius, color = float(row[0]), float(row[1]), self.parse_vector(row[2]), self.parse_vector(row[3]),float(row[4]), color_mapping[row[5].lower()]
+                    charge, mass, pos_vector, vel_vector, radius, color = float(row[0]), float(row[1]), self.parse_vector(row[2]), self.parse_vector(row[3]), float(row[4]), color_mapping[row[5].lower()]
                     new_particle = Particle(charge, mass, pos_vector, vel_vector, vector(0,0,0), radius, color)
                     particles.append(new_particle)
             except:
@@ -475,12 +479,11 @@ class UI_Manager_class:
         def finalize():
             save_data = save_var.get()
             filename = filename_entry.get() if save_data == "File" else ""
-            with_analysis = analysis_var.get() == "Yes"
+            self.with_analysis = analysis_var.get() == "Yes"
 
             if save_var.get() == "Database":
                 dsm = Database_manager()
                 dsm.attach_store(self.store)
-                print("Saving to DB...")
                 dsm.dump_to_db(self.current_user)
                 pass
 
@@ -493,26 +496,21 @@ class UI_Manager_class:
                 fm.export_file(filename, self.store)
                 pass
 
-            selected_graphs = []
-            if with_analysis:
+            self.selected_graphs = []
 
+            if self.with_analysis:
                 if kinetic_var.get():
-                    selected_graphs.append("Kinetic Energy")
+                    self.selected_graphs.append("Kinetic Energy")
                 if speed_var.get():
-                    selected_graphs.append("Speed")
+                    self.selected_graphs.append("Speed")
                 if force_var.get():
-                    selected_graphs.append("Net Force")
+                    self.selected_graphs.append("Net Force")
                 if acceleration_var.get():
-                    selected_graphs.append("Net Acceleration")
-
-                self.simulation = Sim_With_Analysis(self.store, E=self.sim_electric_on, M=self.sim_magnetic_on, G=self.sim_gravity_on)
-            else:
-                self.simulation = Sim(self.store, E=self.sim_electric_on, M=self.sim_magnetic_on, G=self.sim_gravity_on)
-
-            if with_analysis:
-                self.simulation.load_graphs(selected_graphs)
+                    self.selected_graphs.append("Net Acceleration")
 
             self.start_simulation()
+
+            
             
         Button(self.root, text="Finish", command=finalize).pack()
 

@@ -95,7 +95,6 @@ class Particle:
         scene.bind("mousedown", lambda evt: self.handle_mouse_down(evt, self))
         scene.bind("mousemove", lambda evt: self.handle_mouse_drag(evt, self))
         scene.bind("mouseup", lambda evt: self.handle_mouse_up(self))
-        print("Functions bound")
 
 
 class Data_store:

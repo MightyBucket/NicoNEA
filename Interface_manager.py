@@ -89,10 +89,7 @@ class Interfacemanager_class:
             return
         new_sim = input(self.start_msg).strip()
         if new_sim == "1":
-            #try:
             self.new_simulation()
-            #except:
-            #    print("END OF SIMULATION")
         elif new_sim == "2":
             self.load_from_database()
         elif new_sim == "3":
