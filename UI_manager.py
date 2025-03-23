@@ -7,7 +7,6 @@ from Simulation_manager import *
 from Database_manager import *
 from os import listdir
 from os.path import isfile, join
-from multiprocessing import Process
 import pathlib
 
 orange = "#cd9448"
@@ -669,11 +668,11 @@ class UI_Manager_class:
 
 
     
-manager = UI_Manager_class()
+#manager = UI_Manager_class()
 
 
 #manager.authentication()
-manager.new_simulation()
+#manager.new_simulation()
 
 # Run the Tkinter event loop
-manager.root.mainloop()
+#manager.root.mainloop()
