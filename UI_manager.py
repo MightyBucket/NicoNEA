@@ -689,15 +689,12 @@ class UI_Manager_class:
         
 
 
-
-
-
-    
-#manager = UI_Manager_class()
+manager = UI_Manager_class()
 
 
 #manager.authentication()
 #manager.new_simulation()
+manager.main_menu()
 
 # Run the Tkinter event loop
-#manager.root.mainloop()
+manager.root.mainloop()

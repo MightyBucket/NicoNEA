@@ -62,7 +62,7 @@ class Analysis_handler(Analysis_methods):
             for j in range(len(self.vel_data[i])):
                 # func is one of the functions returned from the var_to_func dictionary
                 data = func(self.vel_data[i][j], self.masses[i], self.acc_data[i][j])
-                par_data.append((i*self.increment, data))
+                par_data.append((i, data))
             result_data.append(par_data)
         return result_data
 

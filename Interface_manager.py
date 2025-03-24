@@ -143,11 +143,15 @@ class Interfacemanager_class:
         if self.y_n_input(self.ask_save_msg):
             self.save_simulation()
 
+        with_minmax = False
         if with_analysis:
+            with_minmax = self.y_n_input(self.ask_minmax_msg)
+            """
             if self.y_n_input(self.ask_minmax_msg):
                 analysis = Analysis_handler(self.store)
                 for variable in graph_variables:
                     print(analysis.find_min_max(variable))
+            """
         self.simulation = Sim_With_Analysis(self.store, E=isE, M=isM, G=isG) if with_analysis else Sim(self.store, E=isE, M=isM, G=isG)
 
         print(f"Graph variables: {graph_variables}")
@@ -156,6 +160,12 @@ class Interfacemanager_class:
 
             
         self.simulation.pre_compute()
+
+        if with_analysis and with_minmax:
+            analysis = Analysis_handler(self.store)
+            for variable in graph_variables:
+                print(analysis.find_min_max(variable))
+
         self.simulation.Run()
 
     def save_simulation(self):

@@ -4,7 +4,7 @@ import sys
 
 def main():
     if len(sys.argv) == 2:
-        if sys.argv[1] == "-cmd":
+        if sys.argv[1] == "-cli":
             ui = Interfacemanager_class()
             ui.start()
     else:
@@ -13,4 +13,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
