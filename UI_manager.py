@@ -537,7 +537,7 @@ class UI_Manager_class:
 
             
             
-        Button(self.root, text="Finish", command=finalize).pack()
+        Button(self.root, text="Start simulation", command=finalize).pack()
 
 
     def load_simulation(self):
@@ -692,7 +692,7 @@ class UI_Manager_class:
             self.start_simulation()
             
                 
-        Button(self.root, text="Load", command=load_selected_simulation).pack()
+        Button(self.root, text="Load simulation", command=load_selected_simulation).pack()
 
         
 
