@@ -654,6 +654,10 @@ class UI_Manager_class:
                     selected_graphs.append("Net Force")
                 if acceleration_var.get():
                     selected_graphs.append("Net Acceleration")
+
+            if db_sim and file_sim:
+                messagebox.showerror("Error", "Both database and file fields are populated. Please clear one of them to continue.")
+                return
             
             if db_sim:
                 self.sim_name = db_sim
