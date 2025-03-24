@@ -8,6 +8,7 @@ from Database_manager import *
 from os import listdir
 from os.path import isfile, join
 import pathlib
+import traceback
 
 orange = "#cd9448"
 black = "#000000"
@@ -81,8 +82,13 @@ class UI_Manager_class:
         self.simulation.Run()
 
     def parse_vector(self, inp):
-        x, y, z = inp
-        return vector(x, y, z)
+        if type(inp) == tuple:
+            x, y, z = inp
+            return vector(x, y, z)
+        else:
+            parts = inp.strip("()").split(",")
+            x, y, z = map(float, parts)
+            return vector(x, y, z)
     
     def start(self):        
         self.authentication()
@@ -382,10 +388,18 @@ class UI_Manager_class:
             particles = []
             # Attempt to process the rows in the table into particle objects
             try:
+                print(sheet.get_sheet_data())
+                existing_positions = []
                 for row in sheet.get_sheet_data():  # Get updated values
                     charge, mass, pos_vector, vel_vector, radius, color = float(row[0]), float(row[1]), self.parse_vector(row[2]), self.parse_vector(row[3]), float(row[4]), color_mapping[row[5].lower()]
                     new_particle = Particle(charge, mass, pos_vector, vel_vector, vector(0,0,0), radius, color)
                     particles.append(new_particle)
+
+                    if pos_vector in existing_positions:
+                        messagebox.showerror("Error", "Some particles have the exact same position. Please change this so that the positions are unique")
+                        return
+                    else:
+                        existing_positions.append(pos_vector)
             except:
                 messagebox.showerror("Error", "There was an issue while trying to process the list of particles. Check that all the fields are valid and aren't empty.")
             else:
