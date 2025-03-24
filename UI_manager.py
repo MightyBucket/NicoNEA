@@ -328,7 +328,7 @@ class UI_Manager_class:
         if len(sheet.get_sheet_data()) == 0:
             sheet.insert_row(["", "", "", "", "", ""])
         
-        def add_row(charge="1", mass="1", pos="(0,0,0)", vel="(0,0,0)", radius="0.25", colour="red"):
+        def add_row(charge="1", mass="1", pos=(0, 0, 0), vel=(0, 0, 0), radius="0.25", colour="red"):
             sheet.insert_row([charge, mass, pos, vel, radius, colour])
         
         def remove_selected_row():
@@ -395,7 +395,7 @@ class UI_Manager_class:
         
         button_frame = Frame(self.root)
         button_frame.pack()
-        Button(button_frame, text="Add Particle", command=add_row).pack(side=LEFT, padx=5)
+        Button(button_frame, text="Add Particle", command=lambda: add_row("", "", "", "", "", "")).pack(side=LEFT, padx=5)
         Button(button_frame, text="Remove Particle(s)", command=remove_selected_row).pack(side=LEFT)
 
         Label(self.root, text="Particle presets:").pack()
@@ -668,11 +668,11 @@ class UI_Manager_class:
 
 
     
-#manager = UI_Manager_class()
+manager = UI_Manager_class()
 
 
 #manager.authentication()
-#manager.new_simulation()
+manager.new_simulation()
 
 # Run the Tkinter event loop
-#manager.root.mainloop()
+manager.root.mainloop()
