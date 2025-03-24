@@ -9,10 +9,7 @@ from Database_manager import *
 from os import listdir
 from os.path import isfile, join
 import pathlib
-import traceback
 
-# Define color constant
-black = "#000000"
 
 class UI_Manager_class:
     def __init__(self):
@@ -57,7 +54,7 @@ class UI_Manager_class:
             "copper": vector(1,0.7,0.2)
         }
 
-    def clear_window(self):
+    def _clear_window(self):
         # Remove all widgets from root window
         for widget in self.root.winfo_children():
             widget.destroy()
@@ -68,13 +65,13 @@ class UI_Manager_class:
                 if isfile(join(pathlib.Path().absolute(), name)) 
                 and name[-2:] not in ["py", "db"]]
 
-    def exit(self):
+    def _exit(self):
         # Terminate application
         self.root.destroy()
 
     def start_simulation(self):
         # Close configuration UI and launch simulation
-        self.exit()
+        self._exit()
 
         # Initialize appropriate simulation type based on analysis selection
         if self.with_analysis:
@@ -141,7 +138,7 @@ class UI_Manager_class:
 
     def login_or_register(self):
         # User authentication screen
-        self.clear_window()
+        self._clear_window()
         Label(self.root, text="Please log in or register", 
              font=("Helvetica", 40, "bold")).pack()
 
@@ -185,7 +182,7 @@ class UI_Manager_class:
     # Main application interface
     def main_menu(self):
         # Primary navigation screen
-        self.clear_window()
+        self._clear_window()
         Label(self.root, text="What would you like to do", 
              font=("Helvetica", 40, "bold")).pack()
 
@@ -195,12 +192,12 @@ class UI_Manager_class:
         Button(self.root, text="Load simulation",
              font=self.fonts["button"], command=self.load_simulation).pack(pady=5)
         Button(self.root, text="Exit",
-             font=self.fonts["button"], command=self.exit).pack(pady=5)
+             font=self.fonts["button"], command=self._exit).pack(pady=5)
 
     # New simulation configuration flow
     def new_simulation(self):
         # Simulation setup wizard
-        self.clear_window()
+        self._clear_window()
 
         def toggle_parent_entry():
             # Handle base simulation selection UI state
@@ -338,7 +335,7 @@ class UI_Manager_class:
 
     # Particle configuration screen
     def particles_page(self):
-        self.clear_window()
+        self._clear_window()
         Label(self.root, text="Particle Information:").pack()
         
         # Spreadsheet-style particle input
@@ -572,7 +569,7 @@ class UI_Manager_class:
 
 
     def load_simulation(self):
-        self.clear_window()
+        self._clear_window()
         Label(self.root, text="Select a simulation to load from the database:").pack()
         
         # Dropdown for database simulations
@@ -726,15 +723,3 @@ class UI_Manager_class:
         Button(self.root, text="Load simulation", command=load_selected_simulation).pack()
 
         
-
-
-#manager = UI_Manager_class()
-
-
-#manager.authentication()
-#manager.load_simulation()
-#manager.particles_page()
-#manager.new_simulation()
-
-# Run the Tkinter event loop
-#manager.root.mainloop()

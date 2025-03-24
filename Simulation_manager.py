@@ -64,18 +64,18 @@ class Sim(Collision_manager):
         # Add checkboxes for fields
         self._add_field_checkboxes()
 
-        self.add_recalc_section()
+        self._add_recalc_section()
 
         # Bind mouse events in canvas to enable dragging of particles
-        self.bind_mouse_events()
+        self._bind_mouse_events()
 
-    def clear_window(self):
+    def _clear_window(self):
         self.scene.delete()
         self.scene.caption = ""
         self.scene.title = ""
 
     def rebuild_simulation(self):
-        self.clear_window()
+        self._clear_window()
         
         orig = self.original_sim
 
@@ -92,7 +92,7 @@ class Sim(Collision_manager):
         self.pre_compute()
         self.Run()
 
-    def check_changes(self):
+    def _check_changes(self):
         changes = []
         orig = self.original_sim
 
@@ -180,7 +180,7 @@ class Sim(Collision_manager):
         slider_data = next(sl for sl in self.sliders 
                           if sl["mass_slider"] == s)
         slider_data["mass_text"].text = f'{s.value:.2f}'
-        self.check_changes()
+        self._check_changes()
 
     def set_charge(self, s, particle):
         particle.charge = s.value
@@ -190,7 +190,7 @@ class Sim(Collision_manager):
         slider_data = next(sl for sl in self.sliders 
                           if sl["charge_slider"] == s)
         slider_data["charge_text"].text = f'{s.value:.2f}'
-        self.check_changes()
+        self._check_changes()
 
     def _add_time_slider(self):
         """Add a time slider to move forward and backward in time."""
@@ -234,7 +234,7 @@ class Sim(Collision_manager):
         )
         self.scene.append_to_caption("\n")
 
-    def add_recalc_section(self):
+    def _add_recalc_section(self):
         """Adds a section which keeps track of changes to settings/properties and gives the
            user the option to recalculate the sim"""
         
@@ -252,20 +252,20 @@ class Sim(Collision_manager):
         self.E = evt.checked
         self._update_acc_update_funcs()
         self.live_update = True  # Force recompute
-        self.check_changes()
+        self._check_changes()
 
     def toggle_magnetic_field(self, evt):
         """Toggle the magnetic field on or off."""
         self.M = evt.checked
         self._update_acc_update_funcs()
-        self.check_changes()
+        self._check_changes()
 
     def toggle_gravitational_field(self, evt):
         """Toggle the gravitational field on or off."""
         self.G = evt.checked
         self._update_acc_update_funcs()
         self.live_update = True  # Force recompute
-        self.check_changes()
+        self._check_changes()
 
     def _update_acc_update_funcs(self):
         """Rebuild the acceleration update functions list based on enabled fields."""
@@ -326,23 +326,23 @@ class Sim(Collision_manager):
             count = (count + 1) % self.particles.array_size 
             self.store.add_to_acc(count, particle.acceleration)
 
-    def handle_mouse_down(self):
+    def _handle_mouse_down(self):
         for particle in self.particles.array_particles:
             particle.handle_mouse_down(self.scene)
 
-    def handle_mouse_drag(self):
+    def _handle_mouse_drag(self):
         for particle in self.particles.array_particles:
             particle.handle_mouse_drag(self.scene)
 
-    def handle_mouse_up(self):
+    def _handle_mouse_up(self):
         for particle in self.particles.array_particles:
             particle.handle_mouse_up()
-        self.check_changes()
+        self._check_changes()
 
-    def bind_mouse_events(self):
-        self.scene.bind("mousedown", lambda evt: self.handle_mouse_down())
-        self.scene.bind("mousemove", lambda evt: self.handle_mouse_drag())
-        self.scene.bind("mouseup", lambda evt: self.handle_mouse_up())
+    def _bind_mouse_events(self):
+        self.scene.bind("mousedown", lambda evt: self._handle_mouse_down())
+        self.scene.bind("mousemove", lambda evt: self._handle_mouse_drag())
+        self.scene.bind("mouseup", lambda evt: self._handle_mouse_up())
 
 
     def Run(self):
@@ -396,7 +396,7 @@ class SimulationVisualiser(Sim, PhysicsCalculator):
         self.with_minmax = with_minmax
 
         if with_minmax:
-            self.add_minmax_section()
+            self._add_minmax_section()
 
     def load_graphs(self, arr_vars):
         self.graph_vars = arr_vars
@@ -409,11 +409,8 @@ class SimulationVisualiser(Sim, PhysicsCalculator):
         for variable in arr_vars:
             self.Graphs[variable] = graph(width=1000, height=600, align="left", title="{} vs Time".format(variable), xtitle="Time /s", ytitle=self._get_axis_title(variable), foreground=color.black, background=color.white)
             self.Lines[variable] = [gcurve(graph=self.Graphs[variable], color=par_desc["Colour"]) for par_desc in self.store.initial_conditions]
-
-    def add_minmax_section(self):
-        self.scene.append_to_caption("\n\n")
-        self.minmax_section = wtext(text=" Statistics: ")
-
+            
+    
     def calc_and_display_minmax(self):
         text = " Statistics:\n\n"
         num_particles = self.particles.array_size
@@ -437,8 +434,12 @@ class SimulationVisualiser(Sim, PhysicsCalculator):
 
         self.minmax_section.text = text
 
+    def _add_minmax_section(self):
+        self.scene.append_to_caption("\n\n")
+        self.minmax_section = wtext(text=" Statistics: ")
 
-    def clear_graphs(self):
+
+    def _clear_graphs(self):
         for graph in self.Graphs:
             self.Graphs[graph].delete()
         self.Lines = {}
@@ -447,8 +448,8 @@ class SimulationVisualiser(Sim, PhysicsCalculator):
         return "{} /{}".format(att, self.graph_units[att])
     
     def rebuild_simulation(self):
-        self.clear_window()
-        self.clear_graphs()
+        self._clear_window()
+        self._clear_graphs()
         
         orig = self.original_sim
         orig_graph_vars = self.graph_vars
