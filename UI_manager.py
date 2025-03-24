@@ -697,13 +697,13 @@ class UI_Manager_class:
         
 
 
-manager = UI_Manager_class()
+#manager = UI_Manager_class()
 
 
 #manager.authentication()
 #manager.load_simulation()
 #manager.particles_page()
-manager.new_simulation()
+#manager.new_simulation()
 
 # Run the Tkinter event loop
-manager.root.mainloop()
+#manager.root.mainloop()
