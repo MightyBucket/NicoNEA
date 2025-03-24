@@ -97,7 +97,7 @@ class Particle:
         scene.bind("mouseup", lambda evt: self.handle_mouse_up(self))
 
 
-class Data_store:
+class SimulationState:
     def __init__(self, par_desc):
         self.particles = par_desc
         self.initial_conditions = [particle.get_desc() for particle in par_desc]
@@ -142,7 +142,7 @@ class Particle_Group:
     def __init__(self, list_particle_objs):
         self.array_particles = list_particle_objs
         self.array_size = len(self.array_particles)
-        self.array_pairs = self._calc_par_pairs()
+        self.particle_pairs = self._calc_par_pairs()
         self.precomputed_pairs = []  # Store precomputed values for reuse
         self._precompute_pair_data()
 
@@ -153,7 +153,7 @@ class Particle_Group:
         """Precompute r_vec and direction for all pairs once per timestep"""
         epsilon = 1e-9
         self.precomputed_pairs = []
-        for i, j in self.array_pairs:
+        for i, j in self.particle_pairs:
             p1 = i
             p2 = j
             r_vec = p1.pos - p2.pos

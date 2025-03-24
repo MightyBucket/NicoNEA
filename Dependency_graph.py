@@ -2,7 +2,7 @@ from collections import defaultdict, deque
 
 class DependencyGraph:
     def __init__(self):
-        self.graph = defaultdict(list)  # {parent_sim: [child_sim1, child_sim2]}
+        self.graph = defaultdict(list)
     
     def add_dependency(self, parent_sim, child_sim):
         self.graph[parent_sim].append(child_sim)

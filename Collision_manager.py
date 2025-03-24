@@ -1,51 +1,80 @@
-from vpython import *
-from Particle_manager import *
+from vpython import vector, cross, proj
+from Particle_manager import Particle
 
-class Collision_Handler:
+class Collision_manager:
     def __init__(self, particleGroupObj, e):
-        self.particles = particleGroupObj
-        self.e = e  # E is always set to 1 in the project
-        self.hasJustCollided = self._setupCollisionCounter()
-        self.bounces = 0
+        # Initialize collision system with particle group and restitution coefficient
+        self.particles = particleGroupObj  # Particle group to manage
+        self.e = e  # Coefficient of restitution (1 = perfectly elastic)
+        self.hasJustCollided = self._setupCollisionCounter()  # Collision state tracker
+        self.bounces = 0  # Total collision count
 
-    def neutron_creation(self,p1,p2): #this will not work for a few reasons: p1 hasn't loaded yet so it will be a neutron from the beginnig, p2 has not loaded yet so can't be deleted        Particle.delete_object(p2)
-        Particle.delete_object(p2)
-        p1.charge, p1.mass, p1.colour = [0,100,vector(0,1,0)]
+    def neutron_creation(self, p1, p2):
+        # Special nuclear reaction case: convert collision into neutron
+        Particle.delete_object(p2)  # Remove second particle
+        # Transform first particle into neutron properties
+        p1.charge, p1.mass, p1.colour = [0, 100, vector(0,1,0)]
 
     def _setupCollisionCounter(self):
-        hasJustCollidedDict = {}
-        for pair in self.particles.array_pairs:
-            hasJustCollidedDict[pair] = False
-        return hasJustCollidedDict
+        # Initialize collision tracking for all particle pairs
+        collision_state = {}
+        for pair in self.particles.particle_pairs:
+            collision_state[pair] = False  # Start with no active collisions
+        return collision_state
 
     def collisionDetection(self):
-        for pa, pb in self.particles.array_pairs:
+        # Main collision checking loop for all particle pairs
+        for pa, pb in self.particles.particle_pairs:
             if pa.does_collide_with(pb):
+                # Prevent duplicate collision handling
                 if self.hasJustCollided[(pa, pb)]:
                     continue
+                # Handle collision and update state
                 self.collide(pa, pb)
                 self.hasJustCollided[(pa, pb)] = True
-                self.bounces += 1
+                self.bounces += 1  # Increment global bounce counter
             else:
+                # Reset collision state when particles separate
                 if self.hasJustCollided[(pa,pb)]:
                     self.hasJustCollided[(pa,pb)] = False
-    def collide(self,p1,p2):
-        rOriginal = p2.pos-p1.pos
 
-        #if self.bounces >=2:
-        #    self.neutron_creation(p1,p2)
+    def collide(self, p1, p2):
+        # Calculate collision response using momentum conservation
+        rOriginal = p2.pos - p1.pos  # Vector between particle centers
+        
+        # Uncomment for special neutron creation logic
+        # if self.bounces >= 2:
+        #     self.neutron_creation(p1,p2)
 
-        rHorzPerp = cross(rOriginal, vector(0,1,0))
-        rVertPerp = cross(rHorzPerp, rOriginal)
+        # Create local coordinate system for collision
+        rHorzPerp = cross(rOriginal, vector(0,1,0))  # Horizontal perpendicular
+        rVertPerp = cross(rHorzPerp, rOriginal)       # Vertical perpendicular
 
-        p1VelocitiesIJK = [proj(p1.velocity, rOriginal), proj(p1.velocity, rVertPerp), proj(p1.velocity, rHorzPerp)]
-        p2VelocitiesIJK = [proj(p2.velocity, rOriginal), proj(p2.velocity, rVertPerp), proj(p2.velocity, rHorzPerp)]
+        # Decompose velocities into collision coordinate system components
+        p1VelocitiesIJK = [
+            proj(p1.velocity, rOriginal),   # Along collision axis
+            proj(p1.velocity, rVertPerp),   # Vertical component
+            proj(p1.velocity, rHorzPerp)    # Horizontal component
+        ]
+        p2VelocitiesIJK = [
+            proj(p2.velocity, rOriginal),
+            proj(p2.velocity, rVertPerp),
+            proj(p2.velocity, rHorzPerp)
+        ]
 
+        # Process each velocity component separately
         for i in range(len(p1VelocitiesIJK)):
+            # Store initial velocity for calculation
             p1InitialVelocity = p1VelocitiesIJK[i]
-            p1VelocitiesIJK[i] = (1.15 * p1VelocitiesIJK[i] * (p1.mass - p2.mass * self.e) + p2.mass * p2VelocitiesIJK[i] * (
-                1 + self.e))/(p1.mass + p2.mass)
+            
+            # Conservation of momentum with restitution coefficient
+            # Formula: v1' = [(m1 - e*m2)v1 + (1+e)m2v2] / (m1 + m2)
+            p1VelocitiesIJK[i] = (1.15 * p1VelocitiesIJK[i] * (p1.mass - p2.mass * self.e)
+                            + p2.mass * p2VelocitiesIJK[i] * (1 + self.e)) / (p1.mass + p2.mass)
+            
+            # Corresponding momentum transfer for second particle
             p2VelocitiesIJK[i] = (1.15 * p1InitialVelocity - p2VelocitiesIJK[i]) * self.e + p1VelocitiesIJK[i]
 
-            p1.velocity = (p1VelocitiesIJK[0] + p1VelocitiesIJK[1] + p1VelocitiesIJK[2])
-            p2.velocity = (p2VelocitiesIJK[0] + p2VelocitiesIJK[1] + p2VelocitiesIJK[2])
+            # Reconstruct velocity vectors from components
+            p1.velocity = sum(p1VelocitiesIJK)
+            p2.velocity = sum(p2VelocitiesIJK)

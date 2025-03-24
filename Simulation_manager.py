@@ -7,15 +7,15 @@ from vpython import canvas, button, slider, wtext, rate, vector
 from copy import deepcopy
 import sys
 
-class Sim(Collision_Handler):
-    def __init__(self, data_store_obj, e=1, E=True, M=True, G=True):
+class Sim(Collision_manager):
+    def __init__(self, SimulationState_obj, e=1, E=True, M=True, G=True):
         # Initialize the particle group and handle collisions
-        parGroup = Particle_Group(data_store_obj.particles)
+        parGroup = Particle_Group(SimulationState_obj.particles)
         super(Sim, self).__init__(parGroup, e)
         
         # Set up simulation parameters from the data store object
-        self.name = data_store_obj.sim_name
-        self.rate = data_store_obj.sim_rate
+        self.name = SimulationState_obj.sim_name
+        self.rate = SimulationState_obj.sim_rate
         self.scene = canvas(
             title="Fields Simulator", width=1000, height=800, center=vector(0, 0, 0),
             align="left", background=vector(1, 1, 1)
@@ -24,11 +24,11 @@ class Sim(Collision_Handler):
         self.scene.userpan = True
         self.particles = parGroup
         self.t = 0
-        self.dt = data_store_obj.sim_increment
-        self.run_time = data_store_obj.sim_duration
+        self.dt = SimulationState_obj.sim_increment
+        self.run_time = SimulationState_obj.sim_duration
 
         # Data store setup
-        self.store = data_store_obj
+        self.store = SimulationState_obj
         self.store.sim_rate = self.rate
         self.store.sim_increment = self.dt
         self.store.sim_duration = self.run_time
@@ -387,12 +387,12 @@ class Sim(Collision_Handler):
 
 
 
-class Sim_With_Analysis(Sim, Analysis_methods):
+class SimulationVisualiser(Sim, PhysicsCalculator):
     # Inherits SIM class and overrides the Run()
-    def __init__(self, data_store_obj, e=1, E=True, M=True, G=True, with_minmax=False):
-        super(Sim_With_Analysis, self).__init__(data_store_obj, e, E, M, G)
-        self.graph_units = Analysis_methods().graph_units
-        self.var_to_func = Analysis_methods().var_to_func
+    def __init__(self, SimulationState_obj, e=1, E=True, M=True, G=True, with_minmax=False):
+        super(SimulationVisualiser, self).__init__(SimulationState_obj, e, E, M, G)
+        self.graph_units = PhysicsCalculator().graph_units
+        self.var_to_func = PhysicsCalculator().var_to_func
         self.with_minmax = with_minmax
 
         if with_minmax:
@@ -420,7 +420,7 @@ class Sim_With_Analysis(Sim, Analysis_methods):
 
         results = {}
         for var in self.graph_vars:
-            result = Analysis_handler(self.store).find_min_max(var)
+            result = Analysis_manager(self.store).find_min_max(var)
             results[var] = result
 
         for i in range(num_particles):
@@ -462,7 +462,7 @@ class Sim_With_Analysis(Sim, Analysis_methods):
             orig.store.pos_data[i] = [particle.initial_pos]
 
 
-        self = Sim_With_Analysis(orig.store, E=self.E, M=self.M, G=self.G, with_minmax=self.with_minmax)
+        self = SimulationVisualiser(orig.store, E=self.E, M=self.M, G=self.G, with_minmax=self.with_minmax)
         self.load_graphs(orig_graph_vars)
         self.pre_compute()
         self.calc_and_display_minmax()

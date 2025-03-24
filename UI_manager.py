@@ -1,3 +1,4 @@
+# Import required modules
 from tkinter import *
 from tkinter import messagebox
 from tkinter.ttk import Combobox
@@ -10,30 +11,31 @@ from os.path import isfile, join
 import pathlib
 import traceback
 
+# Define color constant
 black = "#000000"
 
-
 class UI_Manager_class:
-
     def __init__(self):
+        # Initialize main application window
         self.root = Tk()
-        self.root.title("NEA Particle simulator")
+        self.root.title("Particle Dynamics in Fields")
         self.root.geometry("1280x720")
 
+        # Define font styles
         self.fonts = {
             "button": ("Helvetica", 24, "bold")
         }
 
-        # Simulation variables
-        self.simulation = None
-        self.parent_particles = []
-        self.store = None
-        self.current_user = None
-        self.db_manager = Database_manager()
-        self.sim_increment = 0.00001
-        self.dependency_graph = DependencyGraph() 
+        # Simulation-related variables
+        self.simulation = None          # Active simulation instance
+        self.parent_particles = []      # Particles from base simulation
+        self.store = None               # Current simulation data storage
+        self.current_user = None        # Authenticated user
+        self.db_manager = Database_manager()  # Database interaction handler
+        self.sim_increment = 0.00001    # Fixed physics time step
+        self.dependency_graph = DependencyGraph()  # Simulation version tracking
 
-        # Create the validation callback functions for text entry widgets
+        # Input validation setup
         self.validate_int = (self.root.register(lambda P: str.isdigit(P) or P == ""))
         def isFloat(P):
             try:
@@ -42,46 +44,60 @@ class UI_Manager_class:
                 return False
         self.validate_float = (self.root.register(isFloat))
 
-        # Colour translation dictionary used when adding particles
-        self.color_mapping = {
-                "white": vector(1, 1, 1),
-                "red": vector(1, 0, 0),
-                "green": vector(0, 1, 0),
-                "blue": vector(0, 0, 1),
-                "orange": vector(1, 0.6, 0),
-                "purple": vector(0.4, 0.2, 0.6),
-                "black": vector(0, 0, 0),
-                "yellow": vec(1,1,0),
-                "copper": vector(1,0.7,0.2)
-            }
-
+        # Color to vector mapping for particle visualization
+        self.colour_mapping = {
+            "white": vector(1, 1, 1),
+            "red": vector(1, 0, 0),
+            "green": vector(0, 1, 0),
+            "blue": vector(0, 0, 1),
+            "orange": vector(1, 0.6, 0),
+            "purple": vector(0.4, 0.2, 0.6),
+            "black": vector(0, 0, 0),
+            "yellow": vec(1,1,0),
+            "copper": vector(1,0.7,0.2)
+        }
 
     def clear_window(self):
+        # Remove all widgets from root window
         for widget in self.root.winfo_children():
             widget.destroy()
 
     def get_filenames(self):
-        return [name for name in listdir(pathlib.Path().absolute()) if isfile(join(pathlib.Path().absolute(), name)) and name[-2:] not in ["py", "db"]]
+        # Get list of valid simulation files in current directory
+        return [name for name in listdir(pathlib.Path().absolute()) 
+                if isfile(join(pathlib.Path().absolute(), name)) 
+                and name[-2:] not in ["py", "db"]]
 
     def exit(self):
+        # Terminate application
         self.root.destroy()
 
     def start_simulation(self):
+        # Close configuration UI and launch simulation
         self.exit()
 
+        # Initialize appropriate simulation type based on analysis selection
         if self.with_analysis:
-            self.simulation = Sim_With_Analysis(self.store, E=self.sim_electric_on, M=self.sim_magnetic_on, G=self.sim_gravity_on, with_minmax=self.with_minmax)
+            self.simulation = SimulationVisualiser(self.store, 
+                                                  E=self.sim_electric_on,
+                                                  M=self.sim_magnetic_on,
+                                                  G=self.sim_gravity_on,
+                                                  with_minmax=self.with_minmax)
             self.simulation.load_graphs(self.selected_graphs)
         else:
-            self.simulation = Sim(self.store, E=self.sim_electric_on, M=self.sim_magnetic_on, G=self.sim_gravity_on)
+            self.simulation = Sim(self.store, 
+                                E=self.sim_electric_on,
+                                M=self.sim_magnetic_on,
+                                G=self.sim_gravity_on)
                 
+        # Precompute simulation data and run
         self.simulation.pre_compute()
         if self.with_minmax:
             self.simulation.calc_and_display_minmax()
-
         self.simulation.Run()
 
     def parse_vector(self, inp):
+        # Convert various input formats to vpython vector
         if type(inp) == tuple:
             x, y, z = inp
             return vector(x, y, z)
@@ -91,110 +107,103 @@ class UI_Manager_class:
             return vector(x, y, z)
     
     def start(self):        
+        # Start application main loop
         self.authentication()
         self.root.mainloop()
 
+    # Authentication flow methods
     def authentication(self):
-        # Create a welcome sign
-        Label(self.root,
-                            text="NEA Particle simulator",
-                            font=("Helvetica", 50, "bold")).pack()
+        # School code verification screen
+        Label(self.root, text="Particle Dynamics in Fields", 
+             font=("Helvetica", 50, "bold")).pack()
+        Label(self.root, text="Enter school code to begin: ",
+             font=("Helvetica", 30, "bold")).pack(pady=20)
 
-        Label(self.root,
-                            text="Enter school code to begin: ",
-                            font=("Helvetica", 30, "bold")).pack(pady=20)
-
-
-        # School code text entry
+        # School code input field
         code_entry = Entry(self.root, font=("Helvetica", 32, "bold"))
         code_entry.pack()
         code_entry.bind("<Return>", lambda event: check_school_code(code_entry.get()))
         code_entry.focus()
 
-        submit_button = Button(self.root,
-                            text="Submit",
-                            font=("Helvetica", 32, "bold"),
-                            command=lambda: check_school_code(code_entry.get()),
-                            width=8)
+        # Submission button
+        submit_button = Button(self.root, text="Submit", 
+                              font=("Helvetica", 32, "bold"),
+                              command=lambda: check_school_code(code_entry.get()),
+                              width=8)
         submit_button.pack(pady=10)
 
         def check_school_code(code):
+            # Validate institutional access code
             if code == "Hampton":
                 self.login_or_register()
-
             else:
                 messagebox.showerror("Error", "Invalid school code")
 
-
     def login_or_register(self):
+        # User authentication screen
         self.clear_window()
+        Label(self.root, text="Please log in or register", 
+             font=("Helvetica", 40, "bold")).pack()
 
-        
-        Label(self.root, text="Please log in or register", font=("Helvetica", 40, "bold")).pack()
-
-        # Labels and entry fields for username and password
+        # Username input
         Label(self.root, text="Username:", font=self.fonts["button"]).pack(pady=10)
         username_entry = Entry(self.root, font=self.fonts["button"])
         username_entry.pack()
         username_entry.focus()
 
-        Label(self.root,text="Password:",font=self.fonts["button"]).pack(pady=10)
+        # Password input
+        Label(self.root, text="Password:", font=self.fonts["button"]).pack(pady=10)
         password_entry = Entry(self.root, font=self.fonts["button"], show="*")
         password_entry.pack()
-        password_entry.bind("<Return>", lambda event: validate_login(username_entry.get(), password_entry.get()))
+        password_entry.bind("<Return>", lambda event: validate_login(username_entry.get(), 
+                                                                    password_entry.get()))
 
+        # Action buttons
         Button(self.root, text="Login", font=self.fonts["button"], 
-               command=lambda: validate_login(username_entry.get(), password_entry.get())).pack(pady=5)
-
+              command=lambda: validate_login(username_entry.get(), 
+                                            password_entry.get())).pack(pady=5)
         Button(self.root, text="Register", font=self.fonts["button"],
-            command=lambda: validate_registration(username_entry.get(), password_entry.get())).pack(pady=5)
+             command=lambda: validate_registration(username_entry.get(), 
+                                                  password_entry.get())).pack(pady=5)
 
         def validate_login(username, password):
+            # Database authentication check
             if self.db_manager.verify_user(username, password):
                 self.current_user = username
                 self.main_menu()
             else:
                 messagebox.showerror("Invalid login", "Invalid credentials or user doesn't exist")
-        pass
 
         def validate_registration(username, password):
+            # New user account creation
             if self.db_manager.create_user(username, password):
                 self.current_user = username
                 self.main_menu()
             else:
-                messagebox.showerror("Error", "An error occured while registering. The user you entered most likely doesn't exist")
+                messagebox.showerror("Error", "Registration error - username likely exists")
 
-
+    # Main application interface
     def main_menu(self):
+        # Primary navigation screen
         self.clear_window()
+        Label(self.root, text="What would you like to do", 
+             font=("Helvetica", 40, "bold")).pack()
 
-        welcome_label = Label(self.root,
-                            text="What would you like to do",
-                            font=("Helvetica", 40, "bold"))
-        welcome_label.pack()
+        # Main action buttons
+        Button(self.root, text="Start new simulation",
+             font=self.fonts["button"], command=self.new_simulation).pack(pady=5)
+        Button(self.root, text="Load simulation",
+             font=self.fonts["button"], command=self.load_simulation).pack(pady=5)
+        Button(self.root, text="Exit",
+             font=self.fonts["button"], command=self.exit).pack(pady=5)
 
-        new_sim_button = Button(self.root,
-            text="Start new simulation",
-            font=self.fonts["button"],
-            command=self.new_simulation)
-        new_sim_button.pack(pady=5)
-
-        load_sim_button = Button(self.root,
-            text="Load simulation",
-            font=self.fonts["button"],
-            command=self.load_simulation)
-        load_sim_button.pack(pady=5)
-
-        exit_button = Button(self.root,
-            text="Exit",
-            font=self.fonts["button"],
-            command=self.exit)
-        exit_button.pack(pady=5)
-
+    # New simulation configuration flow
     def new_simulation(self):
+        # Simulation setup wizard
         self.clear_window()
 
         def toggle_parent_entry():
+            # Handle base simulation selection UI state
             if base_sim_var.get() == "No":
                 parent_dropdown.config(state=DISABLED)
             elif base_sim_var.get() == "Database":
@@ -203,9 +212,9 @@ class UI_Manager_class:
             elif base_sim_var.get() == "File":
                 parent_dropdown['values'] = file_sims
                 parent_dropdown.config(state=NORMAL)
-                
             parent_dropdown.delete(0, END)
         
+        # Simulation rate controls
         def update_rate_entry(val):
             rate_entry.delete(0, END)
             rate_entry.insert(0, str(int(float(val))))
@@ -213,6 +222,7 @@ class UI_Manager_class:
         def update_rate_slider(event):
             rate_slider.set(int(rate_entry.get()))
 
+        # Simulation duration controls
         def update_duration_entry(val):
             duration_entry.delete(0, END)
             duration_entry.insert(0, str(float(val)))
@@ -220,63 +230,73 @@ class UI_Manager_class:
         def update_duration_slider(event):
             duration_slider.set(float(duration_entry.get()))
         
+        # Simulation name input
         Label(self.root, text="Simulation Name:").pack()
         name_entry = Entry(self.root)
         name_entry.pack()
 
+        # Base simulation selection
         Label(self.root, text="Base this on an existing simulation?").pack()
         base_sim_var = StringVar(value="No")
         base_frame = Frame(self.root)
         base_frame.pack()
-        Radiobutton(base_frame, text="No", variable=base_sim_var, value="No", command=toggle_parent_entry).pack(side=LEFT)
-        Radiobutton(base_frame, text="From database", variable=base_sim_var, value="Database", command=toggle_parent_entry).pack(side=LEFT)
-        Radiobutton(base_frame, text="From file", variable=base_sim_var, value="File", command=toggle_parent_entry).pack(side=LEFT)
+        Radiobutton(base_frame, text="No", variable=base_sim_var, 
+                   value="No", command=toggle_parent_entry).pack(side=LEFT)
+        Radiobutton(base_frame, text="From database", variable=base_sim_var,
+                   value="Database", command=toggle_parent_entry).pack(side=LEFT)
+        Radiobutton(base_frame, text="From file", variable=base_sim_var,
+                   value="File", command=toggle_parent_entry).pack(side=LEFT)
 
-        # Dropdown for selecting existing simulation from database or file
+        # Dropdown for existing simulations
         db_sims = self.db_manager.get_all_names()
         file_sims = self.get_filenames()
-    
         parent_var = StringVar()
         parent_dropdown = Combobox(self.root, textvariable=parent_var, values=db_sims)
         parent_dropdown.pack()
         parent_dropdown.config(state=DISABLED)
 
-
+        # Physics parameter controls
         Label(self.root, text="Simulation Rate (1-20):").pack()
-        
         rate_frame = Frame(self.root)
         rate_frame.pack()
-        rate_entry = Entry(rate_frame, width=5, validate="all", validatecommand=(self.validate_int, '%P'))
+        rate_entry = Entry(rate_frame, width=5, validate="all", 
+                          validatecommand=(self.validate_int, '%P'))
         rate_entry.pack(side=LEFT)
         rate_entry.insert(0, "10")
         rate_entry.bind("<Return>", update_rate_slider)
-        rate_slider = Scale(rate_frame, from_=1, to=20, orient=HORIZONTAL, command=update_rate_entry)
+        rate_slider = Scale(rate_frame, from_=1, to=20, orient=HORIZONTAL,
+                           command=update_rate_entry)
         rate_slider.set(10)
         rate_slider.pack(side=LEFT)
 
         Label(self.root, text="Simulation Duration (0-5 sec):").pack()
         duration_frame = Frame(self.root)
         duration_frame.pack()
-        duration_entry = Entry(duration_frame, width=5, validate="all", validatecommand=(self.validate_float, '%P'))
+        duration_entry = Entry(duration_frame, width=5, validate="all",
+                              validatecommand=(self.validate_float, '%P'))
         duration_entry.pack(side=LEFT)
         duration_entry.insert(0, "2.5")
         duration_entry.bind("<Return>", update_duration_slider)
-        duration_slider = Scale(duration_frame, from_=0, to=5, resolution=0.1, orient=HORIZONTAL, command=update_duration_entry)
+        duration_slider = Scale(duration_frame, from_=0, to=5, resolution=0.1,
+                               orient=HORIZONTAL, command=update_duration_entry)
         duration_slider.set(2.5)
         duration_slider.pack(side=LEFT)
 
+        # Field activation checkboxes
         fields_frame = Frame(self.root)
         fields_frame.pack()
-        
         electric_var = BooleanVar()
         magnetic_var = BooleanVar()
         gravity_var = BooleanVar()
-        
-        Checkbutton(fields_frame, text="Enable electric fields", variable=electric_var).pack(anchor=W)
-        Checkbutton(fields_frame, text="Enable magnetic fields", variable=magnetic_var).pack(anchor=W)
-        Checkbutton(fields_frame, text="Enable gravitational fields", variable=gravity_var).pack(anchor=W)
+        Checkbutton(fields_frame, text="Enable electric fields",
+                   variable=electric_var).pack(anchor=W)
+        Checkbutton(fields_frame, text="Enable magnetic fields",
+                   variable=magnetic_var).pack(anchor=W)
+        Checkbutton(fields_frame, text="Enable gravitational fields",
+                   variable=gravity_var).pack(anchor=W)
 
         def next_page():
+            # Validate inputs and proceed to particle configuration
             self.sim_name = name_entry.get()
             self.sim_rate = float(rate_entry.get())
             self.sim_duration = float(duration_entry.get())
@@ -284,11 +304,12 @@ class UI_Manager_class:
             self.sim_magnetic_on = magnetic_var.get()
             self.sim_gravity_on = gravity_var.get()
 
+            # Check for existing simulation name
             if self.db_manager.name_exists(self.sim_name):
-                        messagebox.showerror("Error", "A simulation with this name already exists in the database. Please choose a different name")
-                        return
+                messagebox.showerror("Error", "Simulation name already exists")
+                return
 
-
+            # Handle base simulation selection
             if base_sim_var.get() != "No":
                 parent_sim = parent_dropdown.get()
                 self.dependency_graph.add_dependency(parent_sim, self.sim_name)
@@ -296,123 +317,133 @@ class UI_Manager_class:
                 if base_sim_var.get() == "Database":
                     try:
                         num_particles = self.db_manager.get_particle_count(parent_sim)
-                        messagebox.showinfo("Particles added", f"{num_particles} particles will be added from the base simulation")
+                        messagebox.showinfo("Particles added", 
+                                          f"{num_particles} particles added from base")
                         particle_store = self.db_manager.pull_from_db(parent_sim)
                         self.parent_particles = particle_store
                     except Exception as e:
-                        messagebox.showerror("Error", f"Error while loading simulation from database: {e}")
+                        messagebox.showerror("Error", f"Database error: {e}")
                         return
                 elif base_sim_var.get() == "File":
                     try:
-                        # Load the Data_store from file
-                        data_store = File_Manager().import_file(parent_sim)
-                        self.parent_particles = data_store.particles
+                        SimulationState = File_Manager().import_file(parent_sim)
+                        self.parent_particles = SimulationState.particles
                     except Exception as e:
-                        messagebox.showerror("Error", f"Error while loading simulation from file: {e}")
+                        messagebox.showerror("Error", f"File error: {e}")
                         return
 
             self.particles_page()
 
         Button(self.root, text="Next", command=next_page).pack()
 
+    # Particle configuration screen
     def particles_page(self):
-        for widget in self.root.winfo_children():
-            widget.destroy()
-        
+        self.clear_window()
         Label(self.root, text="Particle Information:").pack()
         
+        # Spreadsheet-style particle input
         sheet_frame = Frame(self.root)
         sheet_frame.pack()
-        
         sheet = Sheet(sheet_frame,
-                        headers=["Charge", "Mass", "Position (X,Y,Z)", "Velocity (X,Y,Z)", "Radius", "Colour"],
-                        width=600,
-                        height=250)
+                     headers=["Charge", "Mass", "Position (X,Y,Z)", 
+                             "Velocity (X,Y,Z)", "Radius", "Colour"],
+                     width=600,
+                     height=250)
         sheet.set_column_widths([70, 70, 120, 120, 70, 70])
         sheet.pack()
-        sheet.enable_bindings() 
+        sheet.enable_bindings()
 
-        # Preload particles from parent simulation if one was chosen
+        # Preload particles from base simulation
         for particle in self.parent_particles:
-            colour = next(key for key, value in self.color_mapping.items() if value == particle.colour)
+            colour = next(key for key, value in self.colour_mapping.items() 
+                         if value == particle.colour)
             position = (particle.pos.x, particle.pos.y, particle.pos.z)
             velocity = (particle.velocity.x, particle.velocity.y, particle.velocity.z)
-            sheet.insert_row([particle.charge, particle.mass, position, velocity, particle.radius, colour])
+            sheet.insert_row([particle.charge, particle.mass, position, 
+                            velocity, particle.radius, colour])
         
-        # If the table is empty, add an empty row for the user to enter their first particle
+        # Initialize empty row if needed
         if len(sheet.get_sheet_data()) == 0:
             sheet.insert_row(["", "", "", "", "", ""])
         
-        def add_row(charge="1", mass="1", pos=(0, 0, 0), vel=(0, 0, 0), radius="0.25", colour="red"):
+        # Spreadsheet manipulation functions
+        def add_row(charge="1", mass="1", pos=(0, 0, 0), 
+                   vel=(0, 0, 0), radius="0.25", colour="red"):
             sheet.insert_row([charge, mass, pos, vel, radius, colour])
         
         def remove_selected_row():
             selected_rows = list(sheet.get_selected_rows())
-            if selected_rows != []:
+            if selected_rows:
                 for row in reversed(selected_rows):
                     sheet.delete_row(row)
             else:
-                messagebox.showwarning("No particles selected", "No rows were selected. Click the row numbers to select its row then click delete")
+                messagebox.showwarning("No selection", "Select rows to delete")
             
         def add_particle_from_text():
-            # If the table only includes the empty row added at the start, remove it
+            # Command-line style particle input
             if (sheet.get_sheet_data() == ["", "", "", "", "", ""]):
                 sheet.delete_row(0)
 
-            data = particle_input.get()
             try:
+                data = particle_input.get()
                 if data:
                     values = data.split()
                     if len(values) == 6:
                         sheet.insert_row(values)
                 else:
-                    raise Exception("Input field is empty")
+                    raise Exception("Empty input")
             except:
-                message = """
-                Please enter the attributes in the following format: 
+                message = """Input format:
                 CHARGE MASS INITIAL_POSITION INITIAL_VELOCITY RADIUS COLOUR
-                
-                For example: 
-                0.25 100 (0,0,0) (0,0,0) 0.25 red 
-                """
-
+                Example: 0.25 100 (0,0,0) (0,0,0) 0.25 red"""
                 messagebox.showerror("Error", message)
                 
             particle_input.delete(0, END)
 
-            
         def submit():
+            # Process spreadsheet data into particles
             particles = []
-            # Attempt to process the rows in the table into particle objects
             try:
                 existing_positions = []
-                for row in sheet.get_sheet_data():  # Get updated values
-                    charge, mass, pos_vector, vel_vector, radius, color = float(row[0]), float(row[1]), self.parse_vector(row[2]), self.parse_vector(row[3]), float(row[4]), self.color_mapping[row[5].lower()]
+                for row in sheet.get_sheet_data():
+                    charge = float(row[0])
+                    mass = float(row[1])
+                    pos_vector = self.parse_vector(row[2])
+                    vel_vector = self.parse_vector(row[3])
+                    radius = float(row[4])
+                    colour = self.colour_mapping[row[5].lower()]
 
                     if mass <= 0.0 or radius <= 0.0:
-                        messagebox.showerror("Error", "One or more particles have a non-positive mass or radius")
+                        messagebox.showerror("Error", "Invalid mass/radius")
                         return
-
-                    new_particle = Particle(charge, mass, pos_vector, vel_vector, vector(0,0,0), radius, color)
-                    particles.append(new_particle)
 
                     if pos_vector in existing_positions:
-                        messagebox.showerror("Error", "Some particles have the exact same position. Please change this so that the positions are unique")
+                        messagebox.showerror("Error", "Duplicate positions")
                         return
-                    else:
-                        existing_positions.append(pos_vector)
-            except:
-                messagebox.showerror("Error", "There was an issue while trying to process the list of particles. Check that all the fields are valid and aren't empty.")
-            else:
-                self.store = Data_store(particles)
-                self.store.build(self.sim_name, self.sim_rate, self.sim_increment, self.sim_duration)
+                    
+                    existing_positions.append(pos_vector)
+                    particles.append(Particle(charge, mass, pos_vector, 
+                                            vel_vector, vector(0,0,0), 
+                                            radius, colour))
+                
+                # Create simulation state
+                self.store = SimulationState(particles)
+                self.store.build(self.sim_name, self.sim_rate, 
+                                self.sim_increment, self.sim_duration)
                 self.graphs_page()
+                
+            except Exception as e:
+                messagebox.showerror("Error", f"Invalid particle data: {str(e)}")
         
+        # UI controls
         button_frame = Frame(self.root)
         button_frame.pack()
-        Button(button_frame, text="Add Particle", command=lambda: add_row("", "", "", "", "", "")).pack(side=LEFT, padx=5)
-        Button(button_frame, text="Remove Particle(s)", command=remove_selected_row).pack(side=LEFT)
+        Button(button_frame, text="Add Particle", 
+              command=lambda: add_row("", "", "", "", "", "")).pack(side=LEFT, padx=5)
+        Button(button_frame, text="Remove Particle(s)", 
+              command=remove_selected_row).pack(side=LEFT)
 
+        # Preset particles
         Label(self.root, text="Particle presets:").pack()
         presets_frame = Frame(self.root)
         presets_frame.pack()
@@ -675,11 +706,11 @@ class UI_Manager_class:
             if db_sim:
                 self.sim_name = db_sim
                 particle_store = self.db_manager.pull_from_db(db_sim)
-                self.store = Data_store(particle_store)
+                self.store = SimulationState(particle_store)
                 self.store.build(db_sim, self.sim_rate, 0.00001, self.sim_duration)
             elif file_sim:
                 try:
-                    # Load the Data_store from file
+                    # Load the SimulationState from file
                     self.store = File_Manager().import_file(file_sim)
                 except Exception as e:
                     messagebox.showerror("Error", f"Error while loading file: {e}")

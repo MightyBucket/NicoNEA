@@ -5,7 +5,7 @@ from os.path import isfile, join
 import pathlib
 from Dependency_graph import DependencyGraph
 
-class Interfacemanager_class:
+class Interface_manager:
     def __init__(self):
         self.invalid_msg = "INVALID INPUT - PLEASE TRY AGAIN"
         self.start_msg = """
@@ -134,7 +134,7 @@ class Interfacemanager_class:
 
         print(self.enter_par_msg)
         particle_lst = self.par_desc_inp()
-        self.store = Data_store(particle_lst)
+        self.store = SimulationState(particle_lst)
         self.store.build(name, self.rate, increment, duration)
 
         with_analysis = self.y_n_input(self.ask_analys_msg)
@@ -146,7 +146,7 @@ class Interfacemanager_class:
         with_minmax = False
         if with_analysis:
             with_minmax = self.y_n_input(self.ask_minmax_msg)
-        self.simulation = Sim_With_Analysis(self.store, E=isE, M=isM, G=isG, with_minmax=with_minmax) if with_analysis else Sim(self.store, E=isE, M=isM, G=isG)
+        self.simulation = SimulationVisualiser(self.store, E=isE, M=isM, G=isG, with_minmax=with_minmax) if with_analysis else Sim(self.store, E=isE, M=isM, G=isG)
 
         print(f"Graph variables: {graph_variables}")
         if with_analysis:
@@ -201,7 +201,7 @@ class Interfacemanager_class:
             sim_name = input(self.import_from_msg)
             self.rate = self.real_num_inp(self.sim_rate_msg)
             particle_store = dsm.pull_from_db(sim_name)
-            self.store = Data_store(particle_store)
+            self.store = SimulationState(particle_store)
             self.store.build(sim_name, self.rate, 0.00001, 5)
             #particle_store = dsm.eject_store()
             print(self.sim_loaded_msg)
@@ -219,7 +219,7 @@ class Interfacemanager_class:
         while True:
             file_name = input(self.import_from_file_msg)
             try:
-                # Load the Data_store from file
+                # Load the SimulationState from file
                 self.store = File_Manager().import_file(file_name)
                 print(self.sim_loaded_msg)
                 self.run_sim_options()
@@ -234,7 +234,7 @@ class Interfacemanager_class:
         graph_variables = self.analysis_var_input() if with_analysis else None
 
         if with_analysis and self.y_n_input(self.ask_minmax_msg):
-            analysis = Analysis_handler(self.store)
+            analysis = Analysis_manager(self.store)
             for variable in graph_variables:
                 print(analysis.find_min_max(variable))
             stats = self.db_manager.get_simulation_stats()
@@ -245,7 +245,7 @@ class Interfacemanager_class:
             - Max Charge: {stats['max_charge']} C
             """)
 
-        self.simulation = Sim_With_Analysis(self.store, E=isE, M=isM, G=isG) if with_analysis else Sim(self.store, E=isE, M=isM, G=isG)
+        self.simulation = SimulationVisualiser(self.store, E=isE, M=isM, G=isG) if with_analysis else Sim(self.store, E=isE, M=isM, G=isG)
         self.simulation.pre_compute()
         self.simulation.Run()
 

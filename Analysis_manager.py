@@ -1,8 +1,8 @@
 from functools import lru_cache
 
-class Analysis_methods():
+class PhysicsCalculator:
     def __init__(self):
-        # Dictionary that returns the units for the variable the graph displays
+        # Measurement units for different physics quantities
         self.graph_units = {
             "Kinetic Energy": "Joules",
             "Speed": "Metres per second",
@@ -10,90 +10,86 @@ class Analysis_methods():
             "Net Acceleration": "Metres per second squared"
         }
 
-        # Dictionary that returns the functions for the variable the user wants
+        # Mapping of physics quantities to their calculation methods
         self.var_to_func = {
             "Kinetic Energy": self.get_KE,
             "Speed": self.get_speed,
             "Net Force": self.get_net_force,
             "Net Acceleration": self.get_net_acc
-            # *** ADD ACC_DATA TO DATASTORE IN FUTURE
         }
+
+    # Recursive sum for potential energy component calculations
     def _recursive_sum(self, arr):
-        """Recursively sum array elements (demo for nested energy components)"""
         if not arr:
             return 0
         return arr[0] + self._recursive_sum(arr[1:])
 
-
+    # Calculate magnitude of velocity vector with caching
     #@lru_cache(maxsize=1000)
     def v_size(self, vel_v):
+        # Pythagorean theorem for 3D vector magnitude
         return (vel_v.x**2 + vel_v.y**2 + vel_v.z**2)**0.5
     
+    # Kinetic energy calculation (½mv²)
     #@lru_cache(maxsize=1000)
     def get_KE(self, vel_v, mass, acc_v=None):
         return 0.5 * mass * self.v_size(vel_v)**2
 
-    # The following functions take the same inputs, because these will be returned as values from the dictionary
+    # Get speed from velocity vector magnitude
     def get_speed(self, vel_v, mass=None, acc_v=None):
         return self.v_size(vel_v)
 
+    # Calculate net acceleration magnitude
     def get_net_acc(self, vel_v=None, mass=None, acc_v=None):
         return self.v_size(acc_v)
 
+    # Newton's second law: F = ma
     def get_net_force(self, vel_v=None, mass=None, acc_v=None):
         return self.get_net_acc(vel_v=None, mass=None, acc_v=acc_v) * mass
 
-class Analysis_handler(Analysis_methods):
-    def __init__(self, data_store_obj):
-        super(Analysis_handler, self).__init__()
-        self.run_time = data_store_obj.sim_duration
-        self.increment = data_store_obj.sim_increment
-        self.masses = [par["Mass"] for par in data_store_obj.initial_conditions]
-        self.pos_data = data_store_obj.pos_data
-        self.vel_data = data_store_obj.vel_data
-        self.acc_data = data_store_obj.acc_data
+class Analysis_manager(PhysicsCalculator):
+    def __init__(self, SimulationState_obj):
+        super(Analysis_manager, self).__init__()
+        # Initialize simulation parameters from state object
+        self.run_time = SimulationState_obj.sim_duration  # Total simulation time
+        self.increment = SimulationState_obj.sim_increment  # Time step size
+        self.masses = [par["Mass"] for par in SimulationState_obj.initial_conditions]
+        self.pos_data = SimulationState_obj.pos_data  # Position history
+        self.vel_data = SimulationState_obj.vel_data  # Velocity history
+        self.acc_data = SimulationState_obj.acc_data  # Acceleration history
 
-    # Performs one of the functions such as get_KE on the array of particle data to get an array of datapoints
+    # Process particle data for specified physical quantity
     def process_data(self, var_name):
         result_data = []
-        func = self.var_to_func[var_name]
-        for i in range(len(self.masses)):
-            par_data = []
-            for j in range(len(self.vel_data[i])):
-                # func is one of the functions returned from the var_to_func dictionary
-                data = func(self.vel_data[i][j], self.masses[i], self.acc_data[i][j])
-                par_data.append((i, data))
-            result_data.append(par_data)
+        calculation_func = self.var_to_func[var_name]
+        
+        # Calculate values for each particle over time
+        for part_id in range(len(self.masses)):
+            particle_history = []
+            for time_step in range(len(self.vel_data[part_id])):
+                # Calculate physics value for this time step
+                value = calculation_func(
+                    self.vel_data[part_id][time_step],
+                    self.masses[part_id],
+                    self.acc_data[part_id][time_step]
+                )
+                particle_history.append((time_step * self.increment, value))
+            result_data.append(particle_history)
         return result_data
 
-    # Couples timestamps with datapoints - returns an array such as [[[time, value], (...),...] for each particle]
-    def _add_time(self, data):
-        # coupling the data points in data with time
-        for particle in data:
-            for i in range(len(particle)):
-                particle[i] = (i*self.increment, particle[i])
-
-    # Utilises the mergesort algorithm to get the first and last values after the processed data is sorted
-    def find_min_max(self, var_name):
-        minmax_dct = {"Minimum": [], "Maximum": []}
-        for particlelst in self.process_data(var_name):
-            self.m_sort(particlelst)
-            minmax_dct["Minimum"].append(particlelst[0])
-            minmax_dct["Maximum"].append(particlelst[-1])
-        return minmax_dct
-
+    # Merge sort implementation for finding extreme values
     def m_sort(self, arr):
         if len(arr) > 1:
-            midpoint = len(arr)//2
-            # Array is split
-            left = arr[:midpoint]
-            right = arr[midpoint:]
-            # Halves are sorted
+            mid = len(arr) // 2
+            left = arr[:mid]
+            right = arr[mid:]
+
+            # Recursive sorting of halves
             self.m_sort(left)
             self.m_sort(right)
 
+            # Merge sorted halves
             i = j = k = 0
-            # Data is copied
             while i < len(left) and j < len(right):
                 if left[i][1] < right[j][1]:
                     arr[k] = left[i]
@@ -103,7 +99,7 @@ class Analysis_handler(Analysis_methods):
                     j += 1
                 k += 1
 
-            # Any remaining data is copied
+            # Handle remaining elements
             while i < len(left):
                 arr[k] = left[i]
                 i += 1
@@ -113,3 +109,15 @@ class Analysis_handler(Analysis_methods):
                 arr[k] = right[j]
                 j += 1
                 k += 1
+
+    # Find minimum and maximum values for a given quantity
+    def find_min_max(self, var_name):
+        extremes = {"Minimum": [], "Maximum": []}
+        processed_data = self.process_data(var_name)
+        
+        for particle_data in processed_data:
+            self.m_sort(particle_data)
+            extremes["Minimum"].append(particle_data[0])   # First element after sort
+            extremes["Maximum"].append(particle_data[-1])  # Last element after sort
+        
+        return extremes
