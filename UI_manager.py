@@ -386,6 +386,11 @@ class UI_Manager_class:
                 existing_positions = []
                 for row in sheet.get_sheet_data():  # Get updated values
                     charge, mass, pos_vector, vel_vector, radius, color = float(row[0]), float(row[1]), self.parse_vector(row[2]), self.parse_vector(row[3]), float(row[4]), self.color_mapping[row[5].lower()]
+
+                    if mass <= 0.0 or radius <= 0.0:
+                        messagebox.showerror("Error", "One or more particles have a non-positive mass or radius")
+                        return
+
                     new_particle = Particle(charge, mass, pos_vector, vel_vector, vector(0,0,0), radius, color)
                     particles.append(new_particle)
 
@@ -690,12 +695,12 @@ class UI_Manager_class:
         
 
 
-manager = UI_Manager_class()
+#manager = UI_Manager_class()
 
 
 #manager.authentication()
-manager.load_simulation()
-#manager.graphs_page()
+#manager.load_simulation()
+#manager.particles_page()
 
 # Run the Tkinter event loop
-manager.root.mainloop()
+#manager.root.mainloop()
