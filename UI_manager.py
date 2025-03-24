@@ -295,6 +295,8 @@ class UI_Manager_class:
                 
                 if base_sim_var.get() == "Database":
                     try:
+                        num_particles = self.db_manager.get_particle_count(parent_sim)
+                        messagebox.showinfo("Particles added", f"{num_particles} particles will be added from the base simulation")
                         particle_store = self.db_manager.pull_from_db(parent_sim)
                         self.parent_particles = particle_store
                     except Exception as e:
@@ -695,12 +697,13 @@ class UI_Manager_class:
         
 
 
-#manager = UI_Manager_class()
+manager = UI_Manager_class()
 
 
 #manager.authentication()
 #manager.load_simulation()
 #manager.particles_page()
+manager.new_simulation()
 
 # Run the Tkinter event loop
-#manager.root.mainloop()
+manager.root.mainloop()

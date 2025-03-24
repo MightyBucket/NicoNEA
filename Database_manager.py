@@ -130,7 +130,6 @@ class Database_manager():
             SELECT UserID FROM Users WHERE Username = ?
         """, (username,))
         return [row[0] for row in cursor.fetchall()][0]
-        pass
     
     def get_user_simulations(self, username):
         """Get all simulations created by a user"""
@@ -141,6 +140,12 @@ class Database_manager():
             WHERE CreatorID = (SELECT UserID FROM Users WHERE Username = ?)
         """, (username,))
         return [row[0] for row in cursor.fetchall()]
+    
+    def get_particle_count(self, sim_name):
+        connection = sqlite3.connect(self.db_path)
+        cursor = connection.cursor()
+        cursor.execute("SELECT Count(*) FROM Particles WHERE Sim_Name = ?", (sim_name,))
+        return [row[0] for row in cursor.fetchall()][0]
 
     # This would be called when the database is being saved to
     def attach_store(self, data_store_obj):
@@ -316,6 +321,7 @@ class Database_manager():
                 LastLogin DATETIME
             )""")
     
+            # TODO: Delete these table declarations before submitting
             cursor.execute("""
                     CREATE TABLE IF NOT EXISTS Simulation_Metadata (
                         Sim_Name TEXT PRIMARY KEY,
@@ -330,6 +336,8 @@ class Database_manager():
                 ChildSim TEXT PRIMARY KEY,
                 ParentSim TEXT
             )""")
+
+
             # Commit changes and close connection
             connection.commit()
         except sqlite3.Error as e:
