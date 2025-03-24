@@ -284,15 +284,22 @@ class UI_Manager_class:
             self.sim_magnetic_on = magnetic_var.get()
             self.sim_gravity_on = gravity_var.get()
 
+            if self.db_manager.name_exists(self.sim_name):
+                        messagebox.showerror("Error", "A simulation with this name already exists in the database. Please choose a different name")
+                        return
+
 
             if base_sim_var.get() != "No":
                 parent_sim = parent_dropdown.get()
-                self.dependency_graph.add_dependency(parent_sim, name_entry.get())
+                self.dependency_graph.add_dependency(parent_sim, self.sim_name)
                 
                 if base_sim_var.get() == "Database":
-                    particle_store = self.db_manager.pull_from_db(parent_sim)
-                    self.parent_particles = particle_store
-                    #self.store = Data_store(particle_store)
+                    try:
+                        particle_store = self.db_manager.pull_from_db(parent_sim)
+                        self.parent_particles = particle_store
+                    except Exception as e:
+                        messagebox.showerror("Error", f"Error while loading simulation from database: {e}")
+                        return
                 elif base_sim_var.get() == "File":
                     try:
                         # Load the Data_store from file
@@ -682,11 +689,11 @@ class UI_Manager_class:
 
 
     
-manager = UI_Manager_class()
+#manager = UI_Manager_class()
 
 
 #manager.authentication()
-manager.new_simulation()
+#manager.new_simulation()
 
 # Run the Tkinter event loop
-manager.root.mainloop()
+#manager.root.mainloop()
