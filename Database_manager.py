@@ -394,7 +394,6 @@ class Database_manager():
         hashed = self.hash_password(password)
         
         try:
-            #print(f"DB path is {self.db_path}")
             connection = sqlite3.connect(self.db_path)
             cursor = connection.cursor()
             cursor.execute("INSERT INTO Users (Username, PasswordHash) VALUES (?, ?)", 

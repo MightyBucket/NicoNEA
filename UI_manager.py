@@ -10,10 +10,8 @@ from os.path import isfile, join
 import pathlib
 import traceback
 
-orange = "#cd9448"
 black = "#000000"
 
-text_colour = black
 
 class UI_Manager_class:
 
@@ -72,13 +70,15 @@ class UI_Manager_class:
         self.exit()
 
         if self.with_analysis:
-            self.simulation = Sim_With_Analysis(self.store, E=self.sim_electric_on, M=self.sim_magnetic_on, G=self.sim_gravity_on)
+            self.simulation = Sim_With_Analysis(self.store, E=self.sim_electric_on, M=self.sim_magnetic_on, G=self.sim_gravity_on, with_minmax=self.with_minmax)
             self.simulation.load_graphs(self.selected_graphs)
         else:
             self.simulation = Sim(self.store, E=self.sim_electric_on, M=self.sim_magnetic_on, G=self.sim_gravity_on)
                 
-
         self.simulation.pre_compute()
+        if self.with_minmax:
+            self.simulation.calc_and_display_minmax()
+
         self.simulation.Run()
 
     def parse_vector(self, inp):
@@ -380,25 +380,12 @@ class UI_Manager_class:
 
             
         def submit():
-            color_mapping = {
-                "white": vector(1, 1, 1),
-                "red": vector(1, 0, 0),
-                "green": vector(0, 1, 0),
-                "blue": vector(0, 0, 1),
-                "orange": vector(1, 0.6, 0),
-                "purple": vector(0.4, 0.2, 0.6),
-                "black": vector(0, 0, 0),
-                "yellow": vec(1,1,0),
-                "copper": vector(1,0.7,0.2)
-            }
-
             particles = []
             # Attempt to process the rows in the table into particle objects
             try:
-                print(sheet.get_sheet_data())
                 existing_positions = []
                 for row in sheet.get_sheet_data():  # Get updated values
-                    charge, mass, pos_vector, vel_vector, radius, color = float(row[0]), float(row[1]), self.parse_vector(row[2]), self.parse_vector(row[3]), float(row[4]), color_mapping[row[5].lower()]
+                    charge, mass, pos_vector, vel_vector, radius, color = float(row[0]), float(row[1]), self.parse_vector(row[2]), self.parse_vector(row[3]), float(row[4]), self.color_mapping[row[5].lower()]
                     new_particle = Particle(charge, mass, pos_vector, vel_vector, vector(0,0,0), radius, color)
                     particles.append(new_particle)
 
@@ -446,11 +433,14 @@ class UI_Manager_class:
 
         def toggle_graphs_frame():
             if analysis_var.get() == "Yes":
+                minmax_checkbox.config(state=NORMAL)
                 for child in graph_frame.winfo_children():
                     child.config(state=NORMAL)
             else:
+                minmax_checkbox.config(state=DISABLED)
                 for child in graph_frame.winfo_children():
                     child.config(state=DISABLED)
+
         
         Label(self.root, text="Include graphs and analysis?").pack()
         analysis_var = StringVar(value="No")
@@ -458,6 +448,10 @@ class UI_Manager_class:
         analysis_frame.pack()
         Radiobutton(analysis_frame, text="Yes", variable=analysis_var, value="Yes", command=toggle_graphs_frame).pack(side=LEFT)
         Radiobutton(analysis_frame, text="No", variable=analysis_var, value="No", command=toggle_graphs_frame).pack(side=LEFT)
+
+        minmax_var = BooleanVar(value=True)
+        minmax_checkbox = Checkbutton(self.root, text="Calculate min/max values?", variable=minmax_var)
+        minmax_checkbox.pack()
         
         graph_frame = Frame(self.root)
         graph_frame.pack()
@@ -472,6 +466,7 @@ class UI_Manager_class:
         Checkbutton(graph_frame, text="Speed", variable=speed_var).pack(anchor=W)
         Checkbutton(graph_frame, text="Net Force", variable=force_var).pack(anchor=W)
         Checkbutton(graph_frame, text="Net Acceleration", variable=acceleration_var).pack(anchor=W)
+
         toggle_graphs_frame()
         
         Label(self.root, text="Save Simulation Data?").pack()
@@ -500,14 +495,15 @@ class UI_Manager_class:
             save_data = save_var.get()
             filename = filename_entry.get() if save_data == "File" else ""
             self.with_analysis = analysis_var.get() == "Yes"
+            self.with_minmax = minmax_var.get()
 
-            if save_var.get() == "Database":
+            if save_data == "Database":
                 dsm = Database_manager()
                 dsm.attach_store(self.store)
                 dsm.dump_to_db(self.current_user)
                 pass
 
-            if save_var.get() == "File":
+            if save_data == "File":
                 fm = File_Manager()
                 if filename in self.get_filenames():
                     messagebox.showerror("Invalid filename", "The filename you entered to save the simulation to already exists")
@@ -527,6 +523,8 @@ class UI_Manager_class:
                     self.selected_graphs.append("Net Force")
                 if acceleration_var.get():
                     self.selected_graphs.append("Net Acceleration")
+
+                self.with_minmax = minmax_var.get()
 
             self.start_simulation()
 
@@ -605,9 +603,11 @@ class UI_Manager_class:
 
         def toggle_graphs_frame():
             if analysis_var.get() == "Yes":
+                minmax_checkbox.config(state=NORMAL)
                 for child in graph_frame.winfo_children():
                     child.config(state=NORMAL)
             else:
+                minmax_checkbox.config(state=DISABLED)
                 for child in graph_frame.winfo_children():
                     child.config(state=DISABLED)
         
@@ -617,9 +617,14 @@ class UI_Manager_class:
         analysis_frame.pack()
         Radiobutton(analysis_frame, text="Yes", variable=analysis_var, value="Yes", command=toggle_graphs_frame).pack(side=LEFT)
         Radiobutton(analysis_frame, text="No", variable=analysis_var, value="No", command=toggle_graphs_frame).pack(side=LEFT)
+
+        minmax_var = BooleanVar(value=True)
+        minmax_checkbox = Checkbutton(self.root, text="Calculate min/max values?", variable=minmax_var)
+        minmax_checkbox.pack()
         
         graph_frame = Frame(self.root)
         graph_frame.pack()
+
         Label(graph_frame, text="Graphs to include:").pack()
 
         kinetic_var = BooleanVar()
@@ -632,11 +637,12 @@ class UI_Manager_class:
         Checkbutton(graph_frame, text="Net Force", variable=force_var).pack(anchor=W)
         Checkbutton(graph_frame, text="Net Acceleration", variable=acceleration_var).pack(anchor=W)
         toggle_graphs_frame()
-        
+
         def load_selected_simulation():
             db_sim = db_sim_var.get()
             file_sim = file_sim_var.get()
-            with_analysis = analysis_var.get() == "Yes"
+            self.with_analysis = analysis_var.get() == "Yes"
+            self.with_minmax = minmax_var.get()
 
             self.sim_rate = float(rate_entry.get())
             self.sim_duration = float(duration_entry.get())
@@ -644,16 +650,16 @@ class UI_Manager_class:
             self.sim_magnetic_on = magnetic_var.get()
             self.sim_gravity_on = gravity_var.get()
 
-            selected_graphs = []
-            if with_analysis:
+            self.selected_graphs = []
+            if self.with_analysis:
                 if kinetic_var.get():
-                    selected_graphs.append("Kinetic Energy")
+                    self.selected_graphs.append("Kinetic Energy")
                 if speed_var.get():
-                    selected_graphs.append("Speed")
+                    self.selected_graphs.append("Speed")
                 if force_var.get():
-                    selected_graphs.append("Net Force")
+                    self.selected_graphs.append("Net Force")
                 if acceleration_var.get():
-                    selected_graphs.append("Net Acceleration")
+                    self.selected_graphs.append("Net Acceleration")
 
             if db_sim and file_sim:
                 messagebox.showerror("Error", "Both database and file fields are populated. Please clear one of them to continue.")
@@ -675,14 +681,9 @@ class UI_Manager_class:
                 messagebox.showwarning("No Selection", "Please select a simulation to load.")
                 return
             
-            if with_analysis:
-                self.simulation = Sim_With_Analysis(self.store, E=self.sim_electric_on, M=self.sim_magnetic_on, G=self.sim_gravity_on)
-                self.simulation.load_graphs(selected_graphs)
-            else:
-                self.simulation = Sim(self.store, E=self.sim_electric_on, M=self.sim_magnetic_on, G=self.sim_gravity_on)
 
-            self.simulation.pre_compute()
-            self.simulation.Run()
+            self.start_simulation()
+            
                 
         Button(self.root, text="Load", command=load_selected_simulation).pack()
 
@@ -693,8 +694,8 @@ manager = UI_Manager_class()
 
 
 #manager.authentication()
-#manager.new_simulation()
-manager.main_menu()
+manager.load_simulation()
+#manager.graphs_page()
 
 # Run the Tkinter event loop
 manager.root.mainloop()

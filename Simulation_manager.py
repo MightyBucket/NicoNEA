@@ -389,10 +389,14 @@ class Sim(Collision_Handler):
 
 class Sim_With_Analysis(Sim, Analysis_methods):
     # Inherits SIM class and overrides the Run()
-    def __init__(self, data_store_obj, e=1, E=True, M=True, G=True):
+    def __init__(self, data_store_obj, e=1, E=True, M=True, G=True, with_minmax=False):
         super(Sim_With_Analysis, self).__init__(data_store_obj, e, E, M, G)
         self.graph_units = Analysis_methods().graph_units
         self.var_to_func = Analysis_methods().var_to_func
+        self.with_minmax = with_minmax
+
+        if with_minmax:
+            self.add_minmax_section()
 
     def load_graphs(self, arr_vars):
         self.graph_vars = arr_vars
@@ -405,6 +409,34 @@ class Sim_With_Analysis(Sim, Analysis_methods):
         for variable in arr_vars:
             self.Graphs[variable] = graph(width=1000, height=600, align="left", title="{} vs Time".format(variable), xtitle="Time /s", ytitle=self._get_axis_title(variable), foreground=color.black, background=color.white)
             self.Lines[variable] = [gcurve(graph=self.Graphs[variable], color=par_desc["Colour"]) for par_desc in self.store.initial_conditions]
+
+    def add_minmax_section(self):
+        self.scene.append_to_caption("\n\n")
+        self.minmax_section = wtext(text=" Statistics: ")
+
+    def calc_and_display_minmax(self):
+        text = " Statistics:\n\n"
+        num_particles = self.particles.array_size
+
+        results = {}
+        for var in self.graph_vars:
+            result = Analysis_handler(self.store).find_min_max(var)
+            results[var] = result
+
+        for i in range(num_particles):
+            text += f" Particle {i+1}:\n"
+            for var in self.graph_vars:
+                result = results[var]
+                min = result["Minimum"][i][1]
+                max = result["Maximum"][i][1]
+
+                text += f"   {var}: {round(min, 2)} < x < {round(max, 2)}\n"
+
+            text += "\n"
+
+
+        self.minmax_section.text = text
+
 
     def clear_graphs(self):
         for graph in self.Graphs:
@@ -430,9 +462,10 @@ class Sim_With_Analysis(Sim, Analysis_methods):
             orig.store.pos_data[i] = [particle.initial_pos]
 
 
-        self = Sim_With_Analysis(orig.store, E=self.E, M=self.M, G=self.G)
+        self = Sim_With_Analysis(orig.store, E=self.E, M=self.M, G=self.G, with_minmax=self.with_minmax)
         self.load_graphs(orig_graph_vars)
         self.pre_compute()
+        self.calc_and_display_minmax()
         self.Run()
 
     def Run(self):
